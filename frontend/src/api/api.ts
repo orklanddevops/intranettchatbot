@@ -79,6 +79,10 @@ async function fetchUserInfo(): Promise<UserInfo[]> {
     }
   }
 
+  if (isEmbeddedInFrame()) {
+    return []
+  }
+
   try {
     const response = await fetch('/.auth/me', { credentials: 'include' })
     if (!response.ok) {
@@ -93,6 +97,10 @@ async function fetchUserInfo(): Promise<UserInfo[]> {
 }
 
 export async function refreshAuthSession(): Promise<boolean> {
+  if (isEmbeddedInFrame()) {
+    return false
+  }
+
   if (chatbotAccessToken) {
     return true
   }
@@ -124,6 +132,11 @@ export async function getUserInfo(): Promise<UserInfo[]> {
   const userInfo = await fetchUserInfo()
   if (userInfo.length > 0) {
     return userInfo
+  }
+
+  if (isEmbeddedInFrame()) {
+    console.log('No chatbot bearer token found. Access to chat will be blocked.')
+    return []
   }
 
   const refreshed = await refreshAuthSession()

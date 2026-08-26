@@ -18,6 +18,7 @@ import {
   hasChatbotAccessToken,
   historyEnsure,
   historyList,
+  isEmbeddedInFrame,
   refreshAuthSession,
   setChatbotAccessToken
 } from '../api'
@@ -106,13 +107,8 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({ children }) 
       window.parent.postMessage({ type: CHATBOT_AUTH_READY_MESSAGE }, '*')
     }
 
-    const authFallbackTimeout = window.setTimeout(() => {
-      setIsAuthReady(true)
-    }, 10000)
-
     return () => {
       window.removeEventListener('message', handleAuthMessage)
-      window.clearTimeout(authFallbackTimeout)
     }
   }, [])
 
@@ -197,7 +193,7 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({ children }) 
   }, [])
 
   useEffect(() => {
-    if (!state.frontendSettings?.auth_enabled || hasChatbotAccessToken()) {
+    if (!state.frontendSettings?.auth_enabled || hasChatbotAccessToken() || isEmbeddedInFrame()) {
       return
     }
 

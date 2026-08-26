@@ -10,7 +10,6 @@ __pycache__/
 frontend/node_modules/
 
 # Build outputs
-/static/
 /dist/
 /build/
 
