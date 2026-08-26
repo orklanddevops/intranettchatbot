@@ -2,6 +2,29 @@ import { chatHistorySampleData } from '../constants/chatHistory'
 
 import { ChatMessage, Conversation, ConversationRequest, CosmosDBHealth, CosmosDBStatus, UserInfo } from './models'
 
+async function fetchUserInfo(): Promise<UserInfo[]> {
+  try {
+    const response = await fetch('/.auth/me', { credentials: 'include' })
+    if (!response.ok) {
+      return []
+    }
+
+    const payload = await response.json()
+    return Array.isArray(payload) ? payload : []
+  } catch (_err) {
+    return []
+  }
+}
+
+export async function refreshAuthSession(): Promise<boolean> {
+  try {
+    const response = await fetch('/.auth/refresh', { credentials: 'include' })
+    return response.ok
+  } catch (_err) {
+    return false
+  }
+}
+
 export async function conversationApi(options: ConversationRequest, abortSignal: AbortSignal): Promise<Response> {
   const response = await fetch('/conversation', {
     method: 'POST',
@@ -18,14 +41,23 @@ export async function conversationApi(options: ConversationRequest, abortSignal:
 }
 
 export async function getUserInfo(): Promise<UserInfo[]> {
-  const response = await fetch('/.auth/me')
-  if (!response.ok) {
+  const userInfo = await fetchUserInfo()
+  if (userInfo.length > 0) {
+    return userInfo
+  }
+
+  const refreshed = await refreshAuthSession()
+  if (!refreshed) {
     console.log('No identity provider found. Access to chat will be blocked.')
     return []
   }
 
-  const payload = await response.json()
-  return payload
+  const refreshedUserInfo = await fetchUserInfo()
+  if (refreshedUserInfo.length === 0) {
+    console.log('No identity provider found. Access to chat will be blocked.')
+  }
+
+  return refreshedUserInfo
 }
 
 // export const fetchChatHistoryInit = async (): Promise<Conversation[] | null> => {

@@ -108,6 +108,11 @@ resource appService 'Microsoft.Web/sites@2022-03-01' = {
             clientSecretSettingName: 'AUTH_CLIENT_SECRET'
             openIdIssuer: authIssuerUri
           }
+          login: {
+            loginParameters: [
+              'scope=openid profile email offline_access'
+            ]
+          }
           validation: {
             defaultAuthorizationPolicy: {
               allowedApplications: []

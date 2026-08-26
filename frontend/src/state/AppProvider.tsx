@@ -14,7 +14,8 @@ import {
   FrontendSettings,
   frontendSettings,
   historyEnsure,
-  historyList
+  historyList,
+  refreshAuthSession
 } from '../api'
 
 import { appStateReducer } from './AppReducer'
@@ -154,6 +155,19 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({ children }) 
     }
     getFrontendSettings()
   }, [])
+
+  useEffect(() => {
+    if (!state.frontendSettings?.auth_enabled) {
+      return
+    }
+
+    void refreshAuthSession()
+    const refreshInterval = window.setInterval(() => {
+      void refreshAuthSession()
+    }, 45 * 60 * 1000)
+
+    return () => window.clearInterval(refreshInterval)
+  }, [state.frontendSettings?.auth_enabled])
 
   return <AppStateContext.Provider value={{ state, dispatch }}>{children}</AppStateContext.Provider>
 }
