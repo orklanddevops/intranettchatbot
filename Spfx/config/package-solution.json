@@ -3,7 +3,7 @@
   "solution": {
     "name": "orkland-chat-with-ai-client-side-solution",
     "id": "2b02eccf-b46f-4018-b396-037c2f27b35a",
-    "version": "1.0.0.0",
+    "version": "1.0.2.0",
     "includeClientSideAssets": true,
     "skipFeatureDeployment": false,
     "isDomainIsolated": false,
@@ -40,7 +40,7 @@
     ],
     "webApiPermissionRequests": [
       {
-        "resource": "47cbcbfe-6efd-4113-b089-0dcb7c7b33bc",
+        "resource": "IntranettChatbot",
         "scope": "access_as_user"
       }
     ]
