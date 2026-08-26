@@ -1,0 +1,18 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/config.2.0.schema.json",
+  "version": "2.0",
+  "bundles": {
+    "chat-with-ai-application-customizer": {
+      "components": [
+        {
+          "entrypoint": "./lib/extensions/chatWithAi/ChatWithAiApplicationCustomizer.js",
+          "manifest": "./src/extensions/chatWithAi/ChatWithAiApplicationCustomizer.manifest.json"
+        }
+      ]
+    }
+  },
+  "externals": {},
+  "localizedResources": {
+    "ChatWithAiApplicationCustomizerStrings": "lib/extensions/chatWithAi/loc/{locale}.js"
+  }
+}

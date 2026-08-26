@@ -1,0 +1,19 @@
+{
+  "@microsoft/generator-sharepoint": {
+    "plusBeta": false,
+    "isCreatingSolution": true,
+    "nodeVersion": "22.16.0",
+    "sdksVersions": {},
+    "version": "1.21.1",
+    "libraryName": "orkland-chat-with-ai",
+    "libraryId": "2b02eccf-b46f-4018-b396-037c2f27b35a",
+    "environment": "spo",
+    "packageManager": "npm",
+    "solutionName": "Orkland-ChatWithAI",
+    "solutionShortDescription": "Orkland-ChatWithAI description",
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "componentType": "extension",
+    "extensionType": "ApplicationCustomizer"
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
+  "solution": {
+    "name": "orkland-chat-with-ai-client-side-solution",
+    "id": "2b02eccf-b46f-4018-b396-037c2f27b35a",
+    "version": "1.0.0.0",
+    "includeClientSideAssets": true,
+    "skipFeatureDeployment": false,
+    "isDomainIsolated": false,
+    "developer": {
+      "name": "Enable AS",
+      "websiteUrl": "https://www.enable.no",
+      "privacyUrl": "https://www.enable.no",
+      "termsOfUseUrl": "https://www.enable.no",
+      "mpnId": "Undefined-1.21.1"
+    },
+    "metadata": {
+      "shortDescription": {
+        "default": "Orkland-ChatWithAI description"
+      },
+      "longDescription": {
+        "default": "Orkland-ChatWithAI description"
+      },
+      "screenshotPaths": [],
+      "videoUrl": "",
+      "categories": []
+    },
+    "features": [
+      {
+        "title": "Application Extension - Deployment of custom action",
+        "description": "Deploys a custom action with ClientSideComponentId association",
+        "id": "34bf8a13-177a-49fa-89ca-d8a6b3cdb2dd",
+        "version": "1.0.0.0",
+        "assets": {
+          "elementManifests": [
+            "elements.xml"
+          ]
+        }
+      }
+    ],
+    "webApiPermissionRequests": [
+      {
+        "resource": "47cbcbfe-6efd-4113-b089-0dcb7c7b33bc",
+        "scope": "access_as_user"
+      }
+    ]
+  },
+  "paths": {
+    "zippedPackage": "solution/orkland-chat-with-ai.sppkg"
+  }
+}
