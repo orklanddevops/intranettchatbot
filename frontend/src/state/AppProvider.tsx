@@ -6,6 +6,8 @@ import React, {
 } from 'react'
 
 import {
+  CHATBOT_AUTH_READY_MESSAGE,
+  CHATBOT_AUTH_TOKEN_MESSAGE,
   ChatHistoryLoadingState,
   Conversation,
   CosmosDBHealth,
@@ -13,9 +15,11 @@ import {
   Feedback,
   FrontendSettings,
   frontendSettings,
+  hasChatbotAccessToken,
   historyEnsure,
   historyList,
-  refreshAuthSession
+  refreshAuthSession,
+  setChatbotAccessToken
 } from '../api'
 
 import { appStateReducer } from './AppReducer'
@@ -83,8 +87,44 @@ type AppStateProviderProps = {
 
 export const AppStateProvider: React.FC<AppStateProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(appStateReducer, initialState)
+  const [isAuthReady, setIsAuthReady] = React.useState<boolean>(() => window.self === window.top)
 
   useEffect(() => {
+    const handleAuthMessage = (event: MessageEvent) => {
+      const message = event.data
+      if (message?.type !== CHATBOT_AUTH_TOKEN_MESSAGE || typeof message.accessToken !== 'string') {
+        return
+      }
+
+      setChatbotAccessToken(message.accessToken)
+      setIsAuthReady(true)
+    }
+
+    window.addEventListener('message', handleAuthMessage)
+
+    if (window.self !== window.top) {
+      window.parent.postMessage({ type: CHATBOT_AUTH_READY_MESSAGE }, '*')
+    }
+
+    const authFallbackTimeout = window.setTimeout(() => {
+      setIsAuthReady(true)
+    }, 10000)
+
+    return () => {
+      window.removeEventListener('message', handleAuthMessage)
+      window.clearTimeout(authFallbackTimeout)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (state.frontendSettings?.auth_enabled === undefined) {
+      return
+    }
+
+    if (state.frontendSettings.auth_enabled && !isAuthReady) {
+      return
+    }
+
     // Check for cosmosdb config and fetch initial data here
     const fetchChatHistory = async (offset = 0): Promise<Conversation[] | null> => {
       const result = await historyList(offset)
@@ -141,7 +181,7 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({ children }) 
         })
     }
     getHistoryEnsure()
-  }, [])
+  }, [isAuthReady, state.frontendSettings?.auth_enabled])
 
   useEffect(() => {
     const getFrontendSettings = async () => {
@@ -157,7 +197,7 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({ children }) 
   }, [])
 
   useEffect(() => {
-    if (!state.frontendSettings?.auth_enabled) {
+    if (!state.frontendSettings?.auth_enabled || hasChatbotAccessToken()) {
       return
     }
 

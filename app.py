@@ -5,9 +5,11 @@ import logging
 import uuid
 import httpx
 import asyncio
+from functools import wraps
 from quart import (
     Blueprint,
     Quart,
+    g,
     jsonify,
     make_response,
     request,
@@ -21,7 +23,7 @@ from azure.identity.aio import (
     DefaultAzureCredential,
     get_bearer_token_provider
 )
-from backend.auth.auth_utils import get_authenticated_user_details
+from backend.auth.auth_utils import AuthenticationError, get_authenticated_user_details
 from backend.security.ms_defender_utils import get_msdefender_user_json
 from backend.history.cosmosdbservice import CosmosConversationClient
 from backend.settings import (
@@ -105,6 +107,23 @@ frontend_settings = {
     "sanitize_answer": app_settings.base_settings.sanitize_answer,
     "oyd_enabled": app_settings.base_settings.datasource_type,
 }
+
+
+def require_authenticated_user(route_handler):
+    @wraps(route_handler)
+    async def wrapped_route(*args, **kwargs):
+        if not app_settings.base_settings.auth_enabled:
+            g.authenticated_user = get_authenticated_user_details(request.headers)
+            return await route_handler(*args, **kwargs)
+
+        try:
+            g.authenticated_user = get_authenticated_user_details(request.headers, require_auth=True)
+        except AuthenticationError as ex:
+            return jsonify({"error": str(ex)}), 401
+
+        return await route_handler(*args, **kwargs)
+
+    return wrapped_route
 
 
 # Enable Microsoft Defender for Cloud Integration
@@ -276,7 +295,7 @@ def prepare_model_args(request_body, request_headers):
 
     user_security_context = None
     if (MS_DEFENDER_ENABLED):
-        authenticated_user_details = get_authenticated_user_details(request_headers)
+        authenticated_user_details = getattr(g, "authenticated_user", None) or get_authenticated_user_details(request_headers)
         application_name = app_settings.ui.title
         user_security_context = get_msdefender_user_json(authenticated_user_details, request_headers, application_name )  # security component introduced here https://learn.microsoft.com/en-us/azure/defender-for-cloud/gain-end-user-context-ai
     
@@ -583,6 +602,7 @@ async def conversation_internal(request_body, request_headers):
 
 
 @bp.route("/conversation", methods=["POST"])
+@require_authenticated_user
 async def conversation():
     if not request.is_json:
         return jsonify({"error": "request must be json"}), 415
@@ -600,11 +620,27 @@ def get_frontend_settings():
         return jsonify({"error": str(e)}), 500
 
 
+@bp.route("/auth/user", methods=["GET"])
+@require_authenticated_user
+async def get_authenticated_user():
+    authenticated_user = g.authenticated_user
+    return jsonify(
+        [
+            {
+                "provider_name": authenticated_user.get("auth_provider"),
+                "user_id": authenticated_user.get("user_principal_id"),
+                "user_claims": authenticated_user.get("claims", []),
+            }
+        ]
+    ), 200
+
+
 ## Conversation History API ##
 @bp.route("/history/generate", methods=["POST"])
+@require_authenticated_user
 async def add_conversation():
     await cosmos_db_ready.wait()
-    authenticated_user = get_authenticated_user_details(request_headers=request.headers)
+    authenticated_user = g.authenticated_user
     user_id = authenticated_user["user_principal_id"]
 
     ## check request for conversation_id
@@ -658,9 +694,10 @@ async def add_conversation():
 
 
 @bp.route("/history/update", methods=["POST"])
+@require_authenticated_user
 async def update_conversation():
     await cosmos_db_ready.wait()
-    authenticated_user = get_authenticated_user_details(request_headers=request.headers)
+    authenticated_user = g.authenticated_user
     user_id = authenticated_user["user_principal_id"]
 
     ## check request for conversation_id
@@ -708,9 +745,10 @@ async def update_conversation():
 
 
 @bp.route("/history/message_feedback", methods=["POST"])
+@require_authenticated_user
 async def update_message():
     await cosmos_db_ready.wait()
-    authenticated_user = get_authenticated_user_details(request_headers=request.headers)
+    authenticated_user = g.authenticated_user
     user_id = authenticated_user["user_principal_id"]
 
     ## check request for message_id
@@ -754,10 +792,11 @@ async def update_message():
 
 
 @bp.route("/history/delete", methods=["DELETE"])
+@require_authenticated_user
 async def delete_conversation():
     await cosmos_db_ready.wait()
     ## get the user id from the request headers
-    authenticated_user = get_authenticated_user_details(request_headers=request.headers)
+    authenticated_user = g.authenticated_user
     user_id = authenticated_user["user_principal_id"]
 
     ## check request for conversation_id
@@ -797,10 +836,11 @@ async def delete_conversation():
 
 
 @bp.route("/history/list", methods=["GET"])
+@require_authenticated_user
 async def list_conversations():
     await cosmos_db_ready.wait()
     offset = request.args.get("offset", 0)
-    authenticated_user = get_authenticated_user_details(request_headers=request.headers)
+    authenticated_user = g.authenticated_user
     user_id = authenticated_user["user_principal_id"]
 
     ## make sure cosmos is configured
@@ -820,9 +860,10 @@ async def list_conversations():
 
 
 @bp.route("/history/read", methods=["POST"])
+@require_authenticated_user
 async def get_conversation():
     await cosmos_db_ready.wait()
-    authenticated_user = get_authenticated_user_details(request_headers=request.headers)
+    authenticated_user = g.authenticated_user
     user_id = authenticated_user["user_principal_id"]
 
     ## check request for conversation_id
@@ -872,9 +913,10 @@ async def get_conversation():
 
 
 @bp.route("/history/rename", methods=["POST"])
+@require_authenticated_user
 async def rename_conversation():
     await cosmos_db_ready.wait()
-    authenticated_user = get_authenticated_user_details(request_headers=request.headers)
+    authenticated_user = g.authenticated_user
     user_id = authenticated_user["user_principal_id"]
 
     ## check request for conversation_id
@@ -915,10 +957,11 @@ async def rename_conversation():
 
 
 @bp.route("/history/delete_all", methods=["DELETE"])
+@require_authenticated_user
 async def delete_all_conversations():
     await cosmos_db_ready.wait()
     ## get the user id from the request headers
-    authenticated_user = get_authenticated_user_details(request_headers=request.headers)
+    authenticated_user = g.authenticated_user
     user_id = authenticated_user["user_principal_id"]
 
     # get conversations for user
@@ -959,10 +1002,11 @@ async def delete_all_conversations():
 
 
 @bp.route("/history/clear", methods=["POST"])
+@require_authenticated_user
 async def clear_messages():
     await cosmos_db_ready.wait()
     ## get the user id from the request headers
-    authenticated_user = get_authenticated_user_details(request_headers=request.headers)
+    authenticated_user = g.authenticated_user
     user_id = authenticated_user["user_principal_id"]
 
     ## check request for conversation_id
@@ -997,6 +1041,7 @@ async def clear_messages():
 
 
 @bp.route("/history/ensure", methods=["GET"])
+@require_authenticated_user
 async def ensure_cosmos():
     await cosmos_db_ready.wait()
     if not app_settings.chat_history:

@@ -75,6 +75,12 @@ resource appService 'Microsoft.Web/sites@2022-03-01' = {
       },
       !empty(applicationInsightsName) ? { APPLICATIONINSIGHTS_CONNECTION_STRING: applicationInsights.properties.ConnectionString } : {},
       !empty(keyVaultName) ? { AZURE_KEY_VAULT_ENDPOINT: keyVault.properties.vaultUri } : {},
+      !empty(authClientId) ? {
+        AUTH_CLIENT_ID: authClientId
+        AUTH_ISSUER_URI: authIssuerUri
+        AZURE_TENANT_ID: tenant().tenantId
+        CHATBOT_AUTH_AUDIENCES: 'api://${authClientId},${authClientId}'
+      } : {},
       !empty(authClientSecret) ? { AUTH_CLIENT_SECRET: authClientSecret } : {}
     )
   }
@@ -96,8 +102,8 @@ resource appService 'Microsoft.Web/sites@2022-03-01' = {
     name: 'authsettingsV2'
     properties: {
       globalValidation: {
-        requireAuthentication: true
-        unauthenticatedClientAction: 'RedirectToLoginPage'
+        requireAuthentication: false
+        unauthenticatedClientAction: 'AllowAnonymous'
         redirectToProvider: 'azureactivedirectory'
       }
       identityProviders: {

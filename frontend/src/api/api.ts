@@ -2,7 +2,83 @@ import { chatHistorySampleData } from '../constants/chatHistory'
 
 import { ChatMessage, Conversation, ConversationRequest, CosmosDBHealth, CosmosDBStatus, UserInfo } from './models'
 
+export const CHATBOT_AUTH_TOKEN_MESSAGE = 'orkland-chatbot-auth-token'
+export const CHATBOT_AUTH_READY_MESSAGE = 'orkland-chatbot-auth-ready'
+
+let chatbotAccessToken: string | null = null
+let accessTokenWaiters: Array<() => void> = []
+
+export function setChatbotAccessToken(accessToken: string | null): void {
+  chatbotAccessToken = accessToken
+  accessTokenWaiters.forEach(resolve => resolve())
+  accessTokenWaiters = []
+}
+
+export function hasChatbotAccessToken(): boolean {
+  return Boolean(chatbotAccessToken)
+}
+
+export function isEmbeddedInFrame(): boolean {
+  return window.self !== window.top
+}
+
+export function redirectToEasyAuthLogin(): void {
+  const redirectUri = `${window.location.pathname}${window.location.search}${window.location.hash}`
+  window.location.assign(`/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(redirectUri)}`)
+}
+
+function authHeaders(headers: Record<string, string> = {}): HeadersInit {
+  if (!chatbotAccessToken) {
+    return headers
+  }
+
+  return {
+    ...headers,
+    Authorization: `Bearer ${chatbotAccessToken}`
+  }
+}
+
+async function waitForChatbotAccessToken(timeoutMs = 5000): Promise<boolean> {
+  if (chatbotAccessToken) {
+    return true
+  }
+
+  if (!isEmbeddedInFrame()) {
+    return false
+  }
+
+  return await new Promise(resolve => {
+    const timeout = window.setTimeout(() => {
+      resolve(false)
+    }, timeoutMs)
+
+    accessTokenWaiters.push(() => {
+      window.clearTimeout(timeout)
+      resolve(Boolean(chatbotAccessToken))
+    })
+  })
+}
+
 async function fetchUserInfo(): Promise<UserInfo[]> {
+  if (!chatbotAccessToken) {
+    await waitForChatbotAccessToken()
+  }
+
+  if (chatbotAccessToken) {
+    try {
+      const response = await fetch('/auth/user', {
+        method: 'GET',
+        headers: authHeaders()
+      })
+      if (response.ok) {
+        const payload = await response.json()
+        return Array.isArray(payload) ? payload : []
+      }
+    } catch (_err) {
+      return []
+    }
+  }
+
   try {
     const response = await fetch('/.auth/me', { credentials: 'include' })
     if (!response.ok) {
@@ -17,6 +93,10 @@ async function fetchUserInfo(): Promise<UserInfo[]> {
 }
 
 export async function refreshAuthSession(): Promise<boolean> {
+  if (chatbotAccessToken) {
+    return true
+  }
+
   try {
     const response = await fetch('/.auth/refresh', { credentials: 'include' })
     return response.ok
@@ -28,9 +108,9 @@ export async function refreshAuthSession(): Promise<boolean> {
 export async function conversationApi(options: ConversationRequest, abortSignal: AbortSignal): Promise<Response> {
   const response = await fetch('/conversation', {
     method: 'POST',
-    headers: {
+    headers: authHeaders({
       'Content-Type': 'application/json'
-    },
+    }),
     body: JSON.stringify({
       messages: options.messages
     }),
@@ -54,6 +134,9 @@ export async function getUserInfo(): Promise<UserInfo[]> {
 
   const refreshedUserInfo = await fetchUserInfo()
   if (refreshedUserInfo.length === 0) {
+    if (!isEmbeddedInFrame() && window.location.hostname !== '127.0.0.1') {
+      redirectToEasyAuthLogin()
+    }
     console.log('No identity provider found. Access to chat will be blocked.')
   }
 
@@ -69,7 +152,8 @@ export const fetchChatHistoryInit = (): Conversation[] | null => {
 
 export const historyList = async (offset = 0): Promise<Conversation[] | null> => {
   const response = await fetch(`/history/list?offset=${offset}`, {
-    method: 'GET'
+    method: 'GET',
+    headers: authHeaders()
   })
     .then(async res => {
       const payload = await res.json()
@@ -113,9 +197,9 @@ export const historyRead = async (convId: string): Promise<ChatMessage[]> => {
     body: JSON.stringify({
       conversation_id: convId
     }),
-    headers: {
+    headers: authHeaders({
       'Content-Type': 'application/json'
-    }
+    })
   })
     .then(async res => {
       if (!res) {
@@ -162,9 +246,9 @@ export const historyGenerate = async (
   }
   const response = await fetch('/history/generate', {
     method: 'POST',
-    headers: {
+    headers: authHeaders({
       'Content-Type': 'application/json'
-    },
+    }),
     body: body,
     signal: abortSignal
   })
@@ -185,9 +269,9 @@ export const historyUpdate = async (messages: ChatMessage[], convId: string): Pr
       conversation_id: convId,
       messages: messages
     }),
-    headers: {
+    headers: authHeaders({
       'Content-Type': 'application/json'
-    }
+    })
   })
     .then(async res => {
       return res
@@ -210,9 +294,9 @@ export const historyDelete = async (convId: string): Promise<Response> => {
     body: JSON.stringify({
       conversation_id: convId
     }),
-    headers: {
+    headers: authHeaders({
       'Content-Type': 'application/json'
-    }
+    })
   })
     .then(res => {
       return res
@@ -233,9 +317,9 @@ export const historyDeleteAll = async (): Promise<Response> => {
   const response = await fetch('/history/delete_all', {
     method: 'DELETE',
     body: JSON.stringify({}),
-    headers: {
+    headers: authHeaders({
       'Content-Type': 'application/json'
-    }
+    })
   })
     .then(res => {
       return res
@@ -258,9 +342,9 @@ export const historyClear = async (convId: string): Promise<Response> => {
     body: JSON.stringify({
       conversation_id: convId
     }),
-    headers: {
+    headers: authHeaders({
       'Content-Type': 'application/json'
-    }
+    })
   })
     .then(res => {
       return res
@@ -284,9 +368,9 @@ export const historyRename = async (convId: string, title: string): Promise<Resp
       conversation_id: convId,
       title: title
     }),
-    headers: {
+    headers: authHeaders({
       'Content-Type': 'application/json'
-    }
+    })
   })
     .then(res => {
       return res
@@ -305,7 +389,8 @@ export const historyRename = async (convId: string, title: string): Promise<Resp
 
 export const historyEnsure = async (): Promise<CosmosDBHealth> => {
   const response = await fetch('/history/ensure', {
-    method: 'GET'
+    method: 'GET',
+    headers: authHeaders()
   })
     .then(async res => {
       const respJson = await res.json()
@@ -366,9 +451,9 @@ export const historyMessageFeedback = async (messageId: string, feedback: string
       message_id: messageId,
       message_feedback: feedback
     }),
-    headers: {
+    headers: authHeaders({
       'Content-Type': 'application/json'
-    }
+    })
   })
     .then(res => {
       return res

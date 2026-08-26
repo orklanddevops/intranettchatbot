@@ -32,6 +32,7 @@ import {
   CosmosDBStatus,
   ErrorMessage,
   ExecResults,
+  isEmbeddedInFrame
 } from "../../api";
 import { Answer } from "../../components/Answer";
 import { QuestionInput } from "../../components/QuestionInput";
@@ -122,7 +123,7 @@ const Chat = () => {
       return
     }
     const userInfoList = await getUserInfo()
-    if (userInfoList.length === 0 && window.location.hostname !== '127.0.0.1') {
+    if (userInfoList.length === 0 && isEmbeddedInFrame() && window.location.hostname !== '127.0.0.1') {
       setShowAuthMessage(true)
     } else {
       setShowAuthMessage(false)
