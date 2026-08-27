@@ -68,6 +68,10 @@ def add_cors_headers(response):
     return response
 
 
+def standalone_frontend_disabled():
+    return os.environ.get("CHATBOT_DISABLE_STANDALONE_FRONTEND", "false").lower() in ("1", "true", "yes")
+
+
 def create_app():
     app = Quart(__name__)
     app.register_blueprint(bp)
@@ -100,6 +104,9 @@ def create_app():
 
 @bp.route("/")
 async def index():
+    if standalone_frontend_disabled():
+        return jsonify({"error": "Not found"}), 404
+
     return await render_template(
         "index.html",
         title=app_settings.ui.title,
@@ -109,11 +116,17 @@ async def index():
 
 @bp.route("/favicon.ico")
 async def favicon():
+    if standalone_frontend_disabled():
+        return jsonify({"error": "Not found"}), 404
+
     return await bp.send_static_file("favicon.ico")
 
 
 @bp.route("/assets/<path:path>")
 async def assets(path):
+    if standalone_frontend_disabled():
+        return jsonify({"error": "Not found"}), 404
+
     return await send_from_directory("static/assets", path)
 
 
@@ -638,11 +651,13 @@ async def conversation_internal(request_body, request_headers):
             return jsonify({"error": str(ex)}), 500
 
 
+@bp.route("/api/conversation", methods=["OPTIONS"])
 @bp.route("/conversation", methods=["OPTIONS"])
 async def conversation_options():
     return await make_response("", 204)
 
 
+@bp.route("/api/conversation", methods=["POST"])
 @bp.route("/conversation", methods=["POST"])
 @require_authenticated_user
 async def conversation():

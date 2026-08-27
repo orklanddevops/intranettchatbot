@@ -142,6 +142,7 @@ module backend 'core/host/appservice.bicep' = {
       AZURE_OPENAI_SYSTEM_MESSAGE: openAISystemMessage
       AZURE_OPENAI_STREAM: openAIStream
       CHATBOT_ALLOWED_ORIGINS: join(allowedOrigins, ',')
+      CHATBOT_DISABLE_STANDALONE_FRONTEND: 'true'
     }
   }
 }

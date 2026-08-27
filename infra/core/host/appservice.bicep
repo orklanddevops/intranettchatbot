@@ -103,10 +103,11 @@ resource appService 'Microsoft.Web/sites@2022-03-01' = {
     properties: {
       globalValidation: {
         excludedPaths: [
+          '/api/conversation'
           '/conversation'
         ]
         requireAuthentication: true
-        unauthenticatedClientAction: 'RedirectToLoginPage'
+        unauthenticatedClientAction: 'Return401'
         redirectToProvider: 'azureactivedirectory'
       }
       identityProviders: {

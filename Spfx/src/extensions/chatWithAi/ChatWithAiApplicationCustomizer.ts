@@ -33,6 +33,7 @@ interface IChatResponse {
 }
 
 const DEFAULT_CHATBOT_API_BASE_URL = 'https://intranettchatbot.orkland.kommune.no';
+const CHATBOT_CONVERSATION_PATH = '/api/conversation';
 const DEFAULT_CHATBOT_RESOURCE = 'api://47cbcbfe-6efd-4113-b089-0dcb7c7b33bc';
 
 export default class ChatWithAiApplicationCustomizer extends BaseApplicationCustomizer<IChatWithAiApplicationCustomizerProperties> {
@@ -57,7 +58,7 @@ export default class ChatWithAiApplicationCustomizer extends BaseApplicationCust
     launcherContainer.style.position = 'fixed';
     launcherContainer.style.bottom = '20px';
     launcherContainer.style.right = '20px';
-    launcherContainer.style.zIndex = '1000';
+    launcherContainer.style.zIndex = '2147482999';
     launcherContainer.style.cursor = 'pointer';
     launcherContainer.style.width = '70px';
     launcherContainer.style.height = '70px';
@@ -105,7 +106,7 @@ export default class ChatWithAiApplicationCustomizer extends BaseApplicationCust
     panelContainer.style.maxWidth = '100vw';
     panelContainer.style.background = 'radial-gradient(108.78% 108.78% at 50.02% 19.78%, #ffffff 57.29%, #eef6fe 100%)';
     panelContainer.style.boxShadow = '-2px 0 8px rgba(0,0,0,0.22)';
-    panelContainer.style.zIndex = '1001';
+    panelContainer.style.zIndex = '2147483000';
     panelContainer.style.display = 'none';
     panelContainer.style.flexDirection = 'column';
     panelContainer.style.fontFamily = '"Segoe UI", Arial, sans-serif';
@@ -117,16 +118,17 @@ export default class ChatWithAiApplicationCustomizer extends BaseApplicationCust
     closeButton.title = 'Lukk chat';
     closeButton.setAttribute('aria-label', 'Lukk chat');
     closeButton.style.position = 'absolute';
-    closeButton.style.top = '8px';
-    closeButton.style.right = '10px';
-    closeButton.style.zIndex = '2';
-    closeButton.style.width = '36px';
-    closeButton.style.height = '36px';
-    closeButton.style.fontSize = '24px';
-    closeButton.style.lineHeight = '28px';
-    closeButton.style.border = 'none';
-    closeButton.style.borderRadius = '4px';
-    closeButton.style.background = 'rgba(255,255,255,0.85)';
+    closeButton.style.top = '72px';
+    closeButton.style.right = '16px';
+    closeButton.style.zIndex = '2147483001';
+    closeButton.style.width = '40px';
+    closeButton.style.height = '40px';
+    closeButton.style.fontSize = '26px';
+    closeButton.style.lineHeight = '32px';
+    closeButton.style.border = '1px solid rgba(0, 0, 0, 0.18)';
+    closeButton.style.borderRadius = '50%';
+    closeButton.style.background = '#ffffff';
+    closeButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.24)';
     closeButton.style.color = '#323130';
     closeButton.style.cursor = 'pointer';
     closeButton.style.padding = '0';
@@ -136,7 +138,7 @@ export default class ChatWithAiApplicationCustomizer extends BaseApplicationCust
     messagesContainer.style.minHeight = '0';
     messagesContainer.style.overflowY = 'auto';
     messagesContainer.style.overflowX = 'hidden';
-    messagesContainer.style.padding = '56px 24px 0 24px';
+    messagesContainer.style.padding = '120px 24px 0 24px';
     messagesContainer.style.display = 'flex';
     messagesContainer.style.flexDirection = 'column';
 
@@ -433,7 +435,7 @@ export default class ChatWithAiApplicationCustomizer extends BaseApplicationCust
 
       try {
         const token = await getAccessToken();
-        const response = await fetch(`${chatbotApiBaseUrl}/conversation`, {
+        const response = await fetch(`${chatbotApiBaseUrl}${CHATBOT_CONVERSATION_PATH}`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -494,7 +496,9 @@ export default class ChatWithAiApplicationCustomizer extends BaseApplicationCust
       }
     };
 
-    closeButton.onclick = () => {
+    closeButton.onclick = (event: MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
       panelContainer.style.display = 'none';
     };
 
