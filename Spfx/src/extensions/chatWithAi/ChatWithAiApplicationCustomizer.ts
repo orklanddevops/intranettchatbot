@@ -2,13 +2,13 @@ import { BaseApplicationCustomizer } from '@microsoft/sp-application-base';
 import { AadTokenProvider } from '@microsoft/sp-http';
 
 import defaultBotImageUrl from './assets/kommune_karlsen.svg';
+import sendIconUrl from './assets/Send.svg';
 
 interface IChatWithAiApplicationCustomizerProperties {
   imageUrl?: string;
   chatbotApiBaseUrl?: string;
   iframeUrl?: string;
   chatbotResource?: string;
-  tokenRefreshMinutes?: number;
 }
 
 interface IChatMessage {
@@ -36,8 +36,8 @@ const DEFAULT_CHATBOT_API_BASE_URL = 'https://intranettchatbot.orkland.kommune.n
 const DEFAULT_CHATBOT_RESOURCE = 'api://47cbcbfe-6efd-4113-b089-0dcb7c7b33bc';
 
 export default class ChatWithAiApplicationCustomizer extends BaseApplicationCustomizer<IChatWithAiApplicationCustomizerProperties> {
-  private panelContainer: HTMLDivElement;
-  private tokenRefreshTimer: number | undefined;
+  private panelContainer: HTMLDivElement | undefined;
+  private launcherContainer: HTMLDivElement | undefined;
 
   public onInit(): Promise<void> {
     const imageUrl = this.properties.imageUrl || defaultBotImageUrl;
@@ -51,26 +51,25 @@ export default class ChatWithAiApplicationCustomizer extends BaseApplicationCust
       configuredChatbotResource && configuredChatbotResource !== chatbotApiBaseUrl
         ? configuredChatbotResource
         : DEFAULT_CHATBOT_RESOURCE;
-    const tokenRefreshMinutes = this.properties.tokenRefreshMinutes || 45;
     const messages: IChatMessage[] = [];
 
-    const imageContainer = document.createElement('div');
-    imageContainer.style.position = 'fixed';
-    imageContainer.style.bottom = '20px';
-    imageContainer.style.right = '20px';
-    imageContainer.style.zIndex = '1000';
-    imageContainer.style.cursor = 'pointer';
-    imageContainer.style.width = '70px';
-    imageContainer.style.height = '70px';
+    const launcherContainer = document.createElement('div');
+    launcherContainer.style.position = 'fixed';
+    launcherContainer.style.bottom = '20px';
+    launcherContainer.style.right = '20px';
+    launcherContainer.style.zIndex = '1000';
+    launcherContainer.style.cursor = 'pointer';
+    launcherContainer.style.width = '70px';
+    launcherContainer.style.height = '70px';
 
-    const image = document.createElement('img');
-    image.src = imageUrl;
-    image.style.width = '60px';
-    image.style.height = '60px';
-    image.style.borderRadius = '50%';
-    image.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
-    image.alt = 'Bilde av Chat Bot som åpner Intranettchatbot';
-    image.title = 'Åpne Intranett Chatbot';
+    const launcherImage = document.createElement('img');
+    launcherImage.src = imageUrl;
+    launcherImage.style.width = '60px';
+    launcherImage.style.height = '60px';
+    launcherImage.style.borderRadius = '50%';
+    launcherImage.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
+    launcherImage.alt = 'Bilde av Chat Bot som åpner Intranettchatbot';
+    launcherImage.title = 'Åpne Intranett Chatbot';
 
     const launcherCloseButton = document.createElement('button');
     launcherCloseButton.innerText = '×';
@@ -92,102 +91,149 @@ export default class ChatWithAiApplicationCustomizer extends BaseApplicationCust
     launcherCloseButton.style.lineHeight = '18px';
     launcherCloseButton.style.padding = '0';
 
-    imageContainer.appendChild(image);
-    imageContainer.appendChild(launcherCloseButton);
-    document.body.appendChild(imageContainer);
+    launcherContainer.appendChild(launcherImage);
+    launcherContainer.appendChild(launcherCloseButton);
+    document.body.appendChild(launcherContainer);
+    this.launcherContainer = launcherContainer;
 
-    this.panelContainer = document.createElement('div');
-    this.panelContainer.style.position = 'fixed';
-    this.panelContainer.style.top = '0';
-    this.panelContainer.style.right = '0';
-    this.panelContainer.style.width = '420px';
-    this.panelContainer.style.height = '100%';
-    this.panelContainer.style.backgroundColor = '#ffffff';
-    this.panelContainer.style.boxShadow = '-2px 0 8px rgba(0,0,0,0.22)';
-    this.panelContainer.style.zIndex = '1001';
-    this.panelContainer.style.display = 'none';
-    this.panelContainer.style.flexDirection = 'column';
-    this.panelContainer.style.maxWidth = '100vw';
-    this.panelContainer.style.fontFamily = '"Segoe UI", Arial, sans-serif';
-
-    const panelHeader = document.createElement('div');
-    panelHeader.style.display = 'flex';
-    panelHeader.style.alignItems = 'center';
-    panelHeader.style.justifyContent = 'space-between';
-    panelHeader.style.minHeight = '52px';
-    panelHeader.style.borderBottom = '1px solid #edebe9';
-    panelHeader.style.padding = '0 8px 0 16px';
-
-    const titleText = document.createElement('div');
-    titleText.innerText = 'Intranett Chatbot';
-    titleText.style.fontSize = '16px';
-    titleText.style.fontWeight = '600';
-    titleText.style.color = '#201f1e';
+    const panelContainer = document.createElement('div');
+    panelContainer.style.position = 'fixed';
+    panelContainer.style.top = '0';
+    panelContainer.style.right = '0';
+    panelContainer.style.width = 'min(520px, 48vw)';
+    panelContainer.style.height = '100%';
+    panelContainer.style.maxWidth = '100vw';
+    panelContainer.style.background = 'radial-gradient(108.78% 108.78% at 50.02% 19.78%, #ffffff 57.29%, #eef6fe 100%)';
+    panelContainer.style.boxShadow = '-2px 0 8px rgba(0,0,0,0.22)';
+    panelContainer.style.zIndex = '1001';
+    panelContainer.style.display = 'none';
+    panelContainer.style.flexDirection = 'column';
+    panelContainer.style.fontFamily = '"Segoe UI", Arial, sans-serif';
+    panelContainer.style.overflow = 'hidden';
 
     const closeButton = document.createElement('button');
     closeButton.innerText = '×';
     closeButton.type = 'button';
     closeButton.title = 'Lukk chat';
     closeButton.setAttribute('aria-label', 'Lukk chat');
-    closeButton.style.width = '40px';
-    closeButton.style.height = '40px';
+    closeButton.style.position = 'absolute';
+    closeButton.style.top = '8px';
+    closeButton.style.right = '10px';
+    closeButton.style.zIndex = '2';
+    closeButton.style.width = '36px';
+    closeButton.style.height = '36px';
     closeButton.style.fontSize = '24px';
+    closeButton.style.lineHeight = '28px';
     closeButton.style.border = 'none';
-    closeButton.style.background = 'none';
+    closeButton.style.borderRadius = '4px';
+    closeButton.style.background = 'rgba(255,255,255,0.85)';
     closeButton.style.color = '#323130';
     closeButton.style.cursor = 'pointer';
-
-    const statusText = document.createElement('div');
-    statusText.style.minHeight = '18px';
-    statusText.style.padding = '8px 16px';
-    statusText.style.fontSize = '12px';
-    statusText.style.color = '#605e5c';
-    statusText.innerText = 'Klar';
+    closeButton.style.padding = '0';
 
     const messagesContainer = document.createElement('div');
     messagesContainer.style.flex = '1';
     messagesContainer.style.minHeight = '0';
     messagesContainer.style.overflowY = 'auto';
-    messagesContainer.style.padding = '12px 16px';
-    messagesContainer.style.background = '#faf9f8';
+    messagesContainer.style.overflowX = 'hidden';
+    messagesContainer.style.padding = '56px 24px 0 24px';
+    messagesContainer.style.display = 'flex';
+    messagesContainer.style.flexDirection = 'column';
 
     const emptyState = document.createElement('div');
-    emptyState.innerText = 'Hva kan jeg hjelpe deg med?';
-    emptyState.style.color = '#605e5c';
-    emptyState.style.fontSize = '14px';
-    emptyState.style.marginTop = '12px';
+    emptyState.style.flex = '1';
+    emptyState.style.display = 'flex';
+    emptyState.style.justifyContent = 'center';
+    emptyState.style.alignItems = 'center';
+
+    const emptyIcon = document.createElement('img');
+    emptyIcon.src = imageUrl;
+    emptyIcon.alt = '';
+    emptyIcon.setAttribute('aria-hidden', 'true');
+    emptyIcon.style.height = '150px';
+    emptyIcon.style.width = 'auto';
+    emptyState.appendChild(emptyIcon);
     messagesContainer.appendChild(emptyState);
 
+    const composerRegion = document.createElement('div');
+    composerRegion.style.position = 'relative';
+    composerRegion.style.flex = '0 0 auto';
+    composerRegion.style.minHeight = '112px';
+    composerRegion.style.padding = '12px 24px 24px 12px';
+
     const composer = document.createElement('form');
-    composer.style.display = 'flex';
-    composer.style.gap = '8px';
-    composer.style.padding = '12px';
-    composer.style.borderTop = '1px solid #edebe9';
+    composer.style.position = 'absolute';
+    composer.style.left = '5%';
+    composer.style.right = '2.5%';
+    composer.style.bottom = '20px';
+    composer.style.minHeight = '60px';
+    composer.style.maxHeight = '200px';
     composer.style.background = '#ffffff';
+    composer.style.boxShadow = '0px 8px 16px rgba(0, 0, 0, 0.14), 0px 0px 2px rgba(0, 0, 0, 0.12)';
+    composer.style.borderRadius = '0px 8px 8px 0px';
+    composer.style.overflow = 'hidden';
+    composer.style.display = 'flex';
+    composer.style.alignItems = 'center';
+    composer.style.padding = '0 42px 4px 8px';
 
     const input = document.createElement('textarea');
-    input.placeholder = 'Skriv en melding';
-    input.rows = 2;
-    input.style.flex = '1';
+    input.placeholder = 'Skriv inn et nytt spørsmål...';
+    input.rows = 1;
+    input.style.width = '100%';
+    input.style.minHeight = '28px';
+    input.style.maxHeight = '150px';
+    input.style.border = 'none';
+    input.style.outline = 'none';
+    input.style.background = 'transparent';
     input.style.resize = 'none';
-    input.style.border = '1px solid #c8c6c4';
-    input.style.borderRadius = '4px';
+    input.style.overflowY = 'hidden';
     input.style.fontFamily = 'inherit';
     input.style.fontSize = '14px';
-    input.style.padding = '8px';
-    input.style.minHeight = '40px';
-    input.style.maxHeight = '120px';
+    input.style.lineHeight = '24px';
+    input.style.color = '#242424';
+    input.style.margin = '5px';
 
     const sendButton = document.createElement('button');
     sendButton.type = 'submit';
-    sendButton.innerText = 'Send';
+    sendButton.title = 'Send';
+    sendButton.setAttribute('aria-label', 'Send melding');
+    sendButton.style.position = 'absolute';
+    sendButton.style.bottom = '15px';
+    sendButton.style.right = '5px';
+    sendButton.style.width = '32px';
+    sendButton.style.height = '32px';
     sendButton.style.border = 'none';
-    sendButton.style.borderRadius = '4px';
-    sendButton.style.background = '#0078d4';
-    sendButton.style.color = '#ffffff';
+    sendButton.style.background = 'transparent';
     sendButton.style.cursor = 'pointer';
-    sendButton.style.fontWeight = '600';
-    sendButton.style.padding = '0 14px';
+    sendButton.style.padding = '4px';
+
+    const sendIcon = document.createElement('img');
+    sendIcon.src = sendIconUrl;
+    sendIcon.alt = '';
+    sendIcon.setAttribute('aria-hidden', 'true');
+    sendIcon.style.width = '24px';
+    sendIcon.style.height = '23px';
+    sendButton.appendChild(sendIcon);
+
+    const inputBottomBorder = document.createElement('div');
+    inputBottomBorder.style.position = 'absolute';
+    inputBottomBorder.style.width = '100%';
+    inputBottomBorder.style.height = '4px';
+    inputBottomBorder.style.left = '0';
+    inputBottomBorder.style.bottom = '0';
+    inputBottomBorder.style.background = 'radial-gradient(106.04% 106.06% at 100.1% 90.19%, #18864a 33.63%, #8dddd8 100%)';
+    inputBottomBorder.style.borderBottomRightRadius = '8px';
+
+    composer.appendChild(input);
+    composer.appendChild(sendButton);
+    composer.appendChild(inputBottomBorder);
+    composerRegion.appendChild(composer);
+
+    panelContainer.appendChild(closeButton);
+    panelContainer.appendChild(messagesContainer);
+    panelContainer.appendChild(composerRegion);
+    document.body.appendChild(panelContainer);
+    this.panelContainer = panelContainer;
 
     let isSending = false;
 
@@ -195,43 +241,93 @@ export default class ChatWithAiApplicationCustomizer extends BaseApplicationCust
       return `${new Date().getTime()}-${Math.random().toString(16).slice(2)}`;
     };
 
-    const appendMessage = (role: string, content: string): HTMLDivElement => {
+    const scrollToBottom = (): void => {
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    };
+
+    const removeEmptyState = (): void => {
       if (emptyState.parentElement) {
         emptyState.remove();
       }
+    };
+
+    const appendUserMessage = (content: string): void => {
+      removeEmptyState();
 
       const wrapper = document.createElement('div');
       wrapper.style.display = 'flex';
-      wrapper.style.justifyContent = role === 'user' ? 'flex-end' : 'flex-start';
-      wrapper.style.margin = '8px 0';
+      wrapper.style.justifyContent = 'flex-end';
+      wrapper.style.marginBottom = '12px';
 
       const bubble = document.createElement('div');
       bubble.innerText = content;
-      bubble.style.maxWidth = '86%';
-      bubble.style.padding = '9px 11px';
-      bubble.style.borderRadius = '6px';
-      bubble.style.whiteSpace = 'pre-wrap';
-      bubble.style.overflowWrap = 'break-word';
+      bubble.style.position = 'relative';
+      bubble.style.display = 'flex';
+      bubble.style.padding = '20px';
+      bubble.style.background = '#e9f5ee';
+      bubble.style.borderRadius = '8px';
+      bubble.style.boxShadow = '0px 2px 4px rgba(0, 0, 0, 0.14), 0px 0px 2px rgba(0, 0, 0, 0.12)';
+      bubble.style.fontWeight = '400';
       bubble.style.fontSize = '14px';
-      bubble.style.lineHeight = '1.4';
-      bubble.style.background = role === 'user' ? '#0078d4' : '#ffffff';
-      bubble.style.color = role === 'user' ? '#ffffff' : '#201f1e';
-      bubble.style.border = role === 'user' ? 'none' : '1px solid #edebe9';
+      bubble.style.lineHeight = '22px';
+      bubble.style.color = '#242424';
+      bubble.style.whiteSpace = 'pre-wrap';
+      bubble.style.wordWrap = 'break-word';
+      bubble.style.maxWidth = '80%';
 
       wrapper.appendChild(bubble);
       messagesContainer.appendChild(wrapper);
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
-      return bubble;
+      scrollToBottom();
     };
 
-    const setError = (message: string): void => {
-      statusText.innerText = message;
-      statusText.style.color = '#a4262c';
-    };
+    const appendAssistantMessage = (content: string): HTMLDivElement => {
+      removeEmptyState();
 
-    const setStatus = (message: string): void => {
-      statusText.innerText = message;
-      statusText.style.color = '#605e5c';
+      const wrapper = document.createElement('div');
+      wrapper.style.marginBottom = '12px';
+      wrapper.style.maxWidth = '80%';
+      wrapper.style.display = 'flex';
+
+      const answerContainer = document.createElement('div');
+      answerContainer.style.display = 'flex';
+      answerContainer.style.flexDirection = 'column';
+      answerContainer.style.alignItems = 'flex-start';
+      answerContainer.style.padding = '8px';
+      answerContainer.style.gap = '5px';
+      answerContainer.style.background = '#ffffff';
+      answerContainer.style.boxShadow = '0px 1px 2px rgba(0, 0, 0, 0.14), 0px 0px 2px rgba(0, 0, 0, 0.12)';
+      answerContainer.style.borderRadius = '5px';
+
+      const answerText = document.createElement('div');
+      answerText.innerText = content;
+      answerText.style.fontWeight = '400';
+      answerText.style.fontSize = '14px';
+      answerText.style.lineHeight = '20px';
+      answerText.style.color = '#323130';
+      answerText.style.margin = '11px';
+      answerText.style.whiteSpace = 'pre-wrap';
+      answerText.style.wordWrap = 'break-word';
+      answerText.style.overflowX = 'auto';
+
+      const footer = document.createElement('div');
+      footer.style.display = 'flex';
+      footer.style.width = '100%';
+      footer.style.justifyContent = 'flex-end';
+
+      const disclaimer = document.createElement('span');
+      disclaimer.innerText = 'Innhold generert av AI kan være feil';
+      disclaimer.style.fontWeight = '400';
+      disclaimer.style.fontSize = '12px';
+      disclaimer.style.lineHeight = '16px';
+      disclaimer.style.color = '#707070';
+
+      footer.appendChild(disclaimer);
+      answerContainer.appendChild(answerText);
+      answerContainer.appendChild(footer);
+      wrapper.appendChild(answerContainer);
+      messagesContainer.appendChild(wrapper);
+      scrollToBottom();
+      return answerText;
     };
 
     const setSendingState = (sending: boolean): void => {
@@ -239,14 +335,27 @@ export default class ChatWithAiApplicationCustomizer extends BaseApplicationCust
       input.disabled = sending;
       sendButton.disabled = sending;
       sendButton.style.opacity = sending ? '0.65' : '1';
+      sendButton.style.cursor = sending ? 'default' : 'pointer';
+    };
+
+    const resizeInput = (): void => {
+      input.style.height = 'auto';
+      const nextHeight = Math.min(Math.max(input.scrollHeight, 28), 150);
+      input.style.height = `${nextHeight}px`;
+      input.style.overflowY = nextHeight >= 150 ? 'auto' : 'hidden';
     };
 
     const getAccessToken = async (): Promise<string> => {
-      setStatus('Henter pålogging...');
       const tokenProvider: AadTokenProvider = await this.context.aadTokenProviderFactory.getTokenProvider();
-      const accessToken = await tokenProvider.getToken(chatbotResource);
-      setStatus('Klar');
-      return accessToken;
+      return tokenProvider.getToken(chatbotResource);
+    };
+
+    const formatErrorMessage = (error: unknown): string => {
+      if (error instanceof Error && error.message) {
+        return `En feil oppstod. ${error.message}`;
+      }
+
+      return 'En feil oppstod. Vennligst prøv igjen. Hvis problemet vedvarer, kontakt nettstedets administrator.';
     };
 
     const processResponseMessage = (
@@ -269,8 +378,8 @@ export default class ChatWithAiApplicationCustomizer extends BaseApplicationCust
       }
 
       assistantMessage.content += responseMessage.content || '';
-      assistantBubble.innerText = assistantMessage.content || '...';
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      assistantBubble.innerText = assistantMessage.content || 'Genererer svar...';
+      scrollToBottom();
     };
 
     const processChatResponse = (
@@ -303,7 +412,7 @@ export default class ChatWithAiApplicationCustomizer extends BaseApplicationCust
 
       setSendingState(true);
       input.value = '';
-      setStatus('Sender...');
+      resizeInput();
 
       const userMessage: IChatMessage = {
         id: createMessageId(),
@@ -312,7 +421,7 @@ export default class ChatWithAiApplicationCustomizer extends BaseApplicationCust
         date: new Date().toISOString()
       };
       messages.push(userMessage);
-      appendMessage('user', question);
+      appendUserMessage(question);
 
       const assistantMessage: IChatMessage = {
         id: createMessageId(),
@@ -320,7 +429,7 @@ export default class ChatWithAiApplicationCustomizer extends BaseApplicationCust
         content: '',
         date: new Date().toISOString()
       };
-      const assistantBubble = appendMessage('assistant', '...');
+      const assistantBubble = appendAssistantMessage('Genererer svar...');
 
       try {
         const token = await getAccessToken();
@@ -346,7 +455,7 @@ export default class ChatWithAiApplicationCustomizer extends BaseApplicationCust
           let readResult = await reader.read();
 
           while (!readResult.done) {
-            const chunk = decoder.decode(readResult.value);
+            const chunk = readResult.value ? decoder.decode(readResult.value) : '';
             const objects = chunk.split('\n');
             objects.forEach((obj: string) => {
               if (obj === '' || obj === '{}') {
@@ -374,88 +483,62 @@ export default class ChatWithAiApplicationCustomizer extends BaseApplicationCust
           assistantMessage.content = 'Jeg fikk ikke noe svar fra chatboten.';
           assistantBubble.innerText = assistantMessage.content;
         }
-
-        messages.push(assistantMessage);
-        setStatus('Klar');
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Ukjent feil.';
-        assistantBubble.innerText = `En feil oppstod. ${errorMessage}`;
-        messages.push({
-          id: createMessageId(),
-          role: 'error',
-          content: assistantBubble.innerText,
-          date: new Date().toISOString()
-        });
-        setError('Kunne ikke kontakte chatboten.');
+        assistantMessage.content = formatErrorMessage(error);
+        assistantBubble.innerText = assistantMessage.content;
         console.error('Could not send chatbot message', error);
       } finally {
+        messages.push(assistantMessage);
         setSendingState(false);
         input.focus();
       }
     };
 
     closeButton.onclick = () => {
-      this.panelContainer.style.display = 'none';
+      panelContainer.style.display = 'none';
     };
 
     launcherCloseButton.onclick = (event: MouseEvent) => {
       event.stopPropagation();
-      this.panelContainer.style.display = 'none';
-      imageContainer.style.display = 'none';
+      panelContainer.style.display = 'none';
+      launcherContainer.style.display = 'none';
     };
 
-    imageContainer.onclick = () => {
-      this.panelContainer.style.display = 'flex';
+    launcherContainer.onclick = () => {
+      panelContainer.style.display = 'flex';
       input.focus();
-      getAccessToken().catch((error: unknown) => {
-        setError('Kunne ikke hente pålogging til chatboten.');
-        console.error('Could not acquire chatbot token', error);
-      });
     };
 
     composer.onsubmit = (event: Event) => {
       event.preventDefault();
       sendMessage().catch((error: unknown) => {
-        setError('Kunne ikke sende melding.');
         console.error('Could not submit chatbot message', error);
       });
+    };
+
+    input.oninput = () => {
+      resizeInput();
     };
 
     input.onkeydown = (event: KeyboardEvent) => {
       if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
         sendMessage().catch((error: unknown) => {
-          setError('Kunne ikke sende melding.');
           console.error('Could not submit chatbot message', error);
         });
       }
     };
 
-    this.tokenRefreshTimer = window.setInterval(() => {
-      if (this.panelContainer.style.display !== 'none') {
-        getAccessToken().catch((error: unknown) => {
-          setError('Kunne ikke fornye pålogging til chatboten.');
-          console.error('Could not refresh chatbot token', error);
-        });
-      }
-    }, tokenRefreshMinutes * 60 * 1000);
-
-    panelHeader.appendChild(titleText);
-    panelHeader.appendChild(closeButton);
-    composer.appendChild(input);
-    composer.appendChild(sendButton);
-    this.panelContainer.appendChild(panelHeader);
-    this.panelContainer.appendChild(statusText);
-    this.panelContainer.appendChild(messagesContainer);
-    this.panelContainer.appendChild(composer);
-    document.body.appendChild(this.panelContainer);
-
     return Promise.resolve();
   }
 
   public onDispose(): void {
-    if (this.tokenRefreshTimer !== undefined) {
-      window.clearInterval(this.tokenRefreshTimer);
+    if (this.panelContainer && this.panelContainer.parentElement) {
+      this.panelContainer.remove();
+    }
+
+    if (this.launcherContainer && this.launcherContainer.parentElement) {
+      this.launcherContainer.remove();
     }
   }
 }

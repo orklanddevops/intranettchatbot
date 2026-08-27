@@ -638,6 +638,11 @@ async def conversation_internal(request_body, request_headers):
             return jsonify({"error": str(ex)}), 500
 
 
+@bp.route("/conversation", methods=["OPTIONS"])
+async def conversation_options():
+    return await make_response("", 204)
+
+
 @bp.route("/conversation", methods=["POST"])
 @require_authenticated_user
 async def conversation():

@@ -102,8 +102,11 @@ resource appService 'Microsoft.Web/sites@2022-03-01' = {
     name: 'authsettingsV2'
     properties: {
       globalValidation: {
-        requireAuthentication: false
-        unauthenticatedClientAction: 'AllowAnonymous'
+        excludedPaths: [
+          '/conversation'
+        ]
+        requireAuthentication: true
+        unauthenticatedClientAction: 'RedirectToLoginPage'
         redirectToProvider: 'azureactivedirectory'
       }
       identityProviders: {
