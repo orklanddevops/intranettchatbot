@@ -8,6 +8,7 @@ __pycache__/
 
 # Node / Frontend
 frontend/node_modules/
+azure_function/node_modules/
 
 # Build outputs
 /dist/

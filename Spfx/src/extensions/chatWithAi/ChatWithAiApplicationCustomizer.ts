@@ -32,7 +32,7 @@ interface IChatResponse {
   error?: string | { message?: string };
 }
 
-const DEFAULT_CHATBOT_API_BASE_URL = 'https://intranettchatbot.orkland.kommune.no';
+const DEFAULT_CHATBOT_API_BASE_URL = 'https://intranettchatbot-conversation-gkeuczhbgvczddfp.norwayeast-01.azurewebsites.net';
 const CHATBOT_CONVERSATION_PATH = '/api/conversation';
 const DEFAULT_CHATBOT_RESOURCE = 'api://47cbcbfe-6efd-4113-b089-0dcb7c7b33bc';
 
@@ -118,7 +118,7 @@ export default class ChatWithAiApplicationCustomizer extends BaseApplicationCust
     closeButton.title = 'Lukk chat';
     closeButton.setAttribute('aria-label', 'Lukk chat');
     closeButton.style.position = 'absolute';
-    closeButton.style.top = '72px';
+    closeButton.style.top = '16px';
     closeButton.style.right = '16px';
     closeButton.style.zIndex = '2147483001';
     closeButton.style.width = '40px';

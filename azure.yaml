@@ -20,6 +20,11 @@ services:
           run:  cd ./frontend;npm install;npm run build
           interactive: true
           continueOnError: false
+  api-proxy:
+    project: ./azure_function
+    language: js
+    host: function
+    resourceName: intranettchatbot-conversation-gkeuczhbgvczddfp
 hooks:
     preprovision:
       windows:

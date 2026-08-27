@@ -1,0 +1,57 @@
+name: Deploy conversation Function
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - azure_function/.funcignore
+      - azure_function/host.json
+      - azure_function/package.json
+      - azure_function/package-lock.json
+      - azure_function/src/**
+  workflow_dispatch:
+
+concurrency:
+  group: conversation-function-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  AZURE_FUNCTIONAPP_NAME: intranettchatbot-conversation-gkeuczhbgvczddfp
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: azure_function
+  NODE_VERSION: '24.x'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: Production
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Validate Function source
+        working-directory: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+        run: |
+          npm ci --ignore-scripts
+          npm run check
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy Function App
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
+          package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+          remote-build: true
+          respect-funcignore: true
