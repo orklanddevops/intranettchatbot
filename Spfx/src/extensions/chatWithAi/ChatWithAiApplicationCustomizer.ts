@@ -5,14 +5,34 @@ import defaultBotImageUrl from './assets/kommune_karlsen.svg';
 
 interface IChatWithAiApplicationCustomizerProperties {
   imageUrl?: string;
+  chatbotApiBaseUrl?: string;
   iframeUrl?: string;
   chatbotResource?: string;
   tokenRefreshMinutes?: number;
 }
 
-const AUTH_READY_MESSAGE = 'orkland-chatbot-auth-ready';
-const AUTH_TOKEN_MESSAGE = 'orkland-chatbot-auth-token';
-const DEFAULT_IFRAME_URL = 'https://intranettchatbot.orkland.kommune.no';
+interface IChatMessage {
+  id: string;
+  role: string;
+  content: string;
+  date: string;
+}
+
+interface IChatResponseMessage {
+  role: string;
+  content?: string;
+  context?: string;
+}
+
+interface IChatResponse {
+  id?: string;
+  choices?: Array<{
+    messages?: IChatResponseMessage[];
+  }>;
+  error?: string | { message?: string };
+}
+
+const DEFAULT_CHATBOT_API_BASE_URL = 'https://intranettchatbot.orkland.kommune.no';
 const DEFAULT_CHATBOT_RESOURCE = 'api://47cbcbfe-6efd-4113-b089-0dcb7c7b33bc';
 
 export default class ChatWithAiApplicationCustomizer extends BaseApplicationCustomizer<IChatWithAiApplicationCustomizerProperties> {
@@ -21,14 +41,18 @@ export default class ChatWithAiApplicationCustomizer extends BaseApplicationCust
 
   public onInit(): Promise<void> {
     const imageUrl = this.properties.imageUrl || defaultBotImageUrl;
-    const iframeUrl = this.properties.iframeUrl || DEFAULT_IFRAME_URL;
+    const chatbotApiBaseUrl = (
+      this.properties.chatbotApiBaseUrl ||
+      this.properties.iframeUrl ||
+      DEFAULT_CHATBOT_API_BASE_URL
+    ).replace(/\/$/, '');
     const configuredChatbotResource = this.properties.chatbotResource;
     const chatbotResource =
-      configuredChatbotResource && configuredChatbotResource !== iframeUrl
+      configuredChatbotResource && configuredChatbotResource !== chatbotApiBaseUrl
         ? configuredChatbotResource
         : DEFAULT_CHATBOT_RESOURCE;
-    const iframeOrigin = new URL(iframeUrl).origin;
     const tokenRefreshMinutes = this.properties.tokenRefreshMinutes || 45;
+    const messages: IChatMessage[] = [];
 
     const imageContainer = document.createElement('div');
     imageContainer.style.position = 'fixed';
@@ -76,21 +100,29 @@ export default class ChatWithAiApplicationCustomizer extends BaseApplicationCust
     this.panelContainer.style.position = 'fixed';
     this.panelContainer.style.top = '0';
     this.panelContainer.style.right = '0';
-    this.panelContainer.style.width = '400px';
+    this.panelContainer.style.width = '420px';
     this.panelContainer.style.height = '100%';
-    this.panelContainer.style.backgroundColor = '#fff';
-    this.panelContainer.style.boxShadow = '-2px 0 8px rgba(0,0,0,0.2)';
+    this.panelContainer.style.backgroundColor = '#ffffff';
+    this.panelContainer.style.boxShadow = '-2px 0 8px rgba(0,0,0,0.22)';
     this.panelContainer.style.zIndex = '1001';
     this.panelContainer.style.display = 'none';
     this.panelContainer.style.flexDirection = 'column';
     this.panelContainer.style.maxWidth = '100vw';
+    this.panelContainer.style.fontFamily = '"Segoe UI", Arial, sans-serif';
 
     const panelHeader = document.createElement('div');
     panelHeader.style.display = 'flex';
     panelHeader.style.alignItems = 'center';
-    panelHeader.style.justifyContent = 'flex-end';
-    panelHeader.style.minHeight = '48px';
+    panelHeader.style.justifyContent = 'space-between';
+    panelHeader.style.minHeight = '52px';
     panelHeader.style.borderBottom = '1px solid #edebe9';
+    panelHeader.style.padding = '0 8px 0 16px';
+
+    const titleText = document.createElement('div');
+    titleText.innerText = 'Intranett Chatbot';
+    titleText.style.fontSize = '16px';
+    titleText.style.fontWeight = '600';
+    titleText.style.color = '#201f1e';
 
     const closeButton = document.createElement('button');
     closeButton.innerText = '×';
@@ -99,7 +131,6 @@ export default class ChatWithAiApplicationCustomizer extends BaseApplicationCust
     closeButton.setAttribute('aria-label', 'Lukk chat');
     closeButton.style.width = '40px';
     closeButton.style.height = '40px';
-    closeButton.style.margin = '4px 8px';
     closeButton.style.fontSize = '24px';
     closeButton.style.border = 'none';
     closeButton.style.background = 'none';
@@ -107,54 +138,260 @@ export default class ChatWithAiApplicationCustomizer extends BaseApplicationCust
     closeButton.style.cursor = 'pointer';
 
     const statusText = document.createElement('div');
-    statusText.style.padding = '0 12px 10px 12px';
-    statusText.style.fontSize = '13px';
+    statusText.style.minHeight = '18px';
+    statusText.style.padding = '8px 16px';
+    statusText.style.fontSize = '12px';
     statusText.style.color = '#605e5c';
-    statusText.innerText = 'Henter pålogging...';
+    statusText.innerText = 'Klar';
 
-    const iframe = document.createElement('iframe');
-    iframe.style.width = '100%';
-    iframe.style.height = 'auto';
-    iframe.style.flex = '1';
-    iframe.style.minHeight = '0';
-    iframe.style.border = 'none';
-    iframe.title = 'Intranett Chatbot';
+    const messagesContainer = document.createElement('div');
+    messagesContainer.style.flex = '1';
+    messagesContainer.style.minHeight = '0';
+    messagesContainer.style.overflowY = 'auto';
+    messagesContainer.style.padding = '12px 16px';
+    messagesContainer.style.background = '#faf9f8';
 
-    const sendTokenToIframe = async (): Promise<void> => {
-      if (!iframe.contentWindow) {
+    const emptyState = document.createElement('div');
+    emptyState.innerText = 'Hva kan jeg hjelpe deg med?';
+    emptyState.style.color = '#605e5c';
+    emptyState.style.fontSize = '14px';
+    emptyState.style.marginTop = '12px';
+    messagesContainer.appendChild(emptyState);
+
+    const composer = document.createElement('form');
+    composer.style.display = 'flex';
+    composer.style.gap = '8px';
+    composer.style.padding = '12px';
+    composer.style.borderTop = '1px solid #edebe9';
+    composer.style.background = '#ffffff';
+
+    const input = document.createElement('textarea');
+    input.placeholder = 'Skriv en melding';
+    input.rows = 2;
+    input.style.flex = '1';
+    input.style.resize = 'none';
+    input.style.border = '1px solid #c8c6c4';
+    input.style.borderRadius = '4px';
+    input.style.fontFamily = 'inherit';
+    input.style.fontSize = '14px';
+    input.style.padding = '8px';
+    input.style.minHeight = '40px';
+    input.style.maxHeight = '120px';
+
+    const sendButton = document.createElement('button');
+    sendButton.type = 'submit';
+    sendButton.innerText = 'Send';
+    sendButton.style.border = 'none';
+    sendButton.style.borderRadius = '4px';
+    sendButton.style.background = '#0078d4';
+    sendButton.style.color = '#ffffff';
+    sendButton.style.cursor = 'pointer';
+    sendButton.style.fontWeight = '600';
+    sendButton.style.padding = '0 14px';
+
+    let isSending = false;
+
+    const createMessageId = (): string => {
+      return `${new Date().getTime()}-${Math.random().toString(16).slice(2)}`;
+    };
+
+    const appendMessage = (role: string, content: string): HTMLDivElement => {
+      if (emptyState.parentElement) {
+        emptyState.remove();
+      }
+
+      const wrapper = document.createElement('div');
+      wrapper.style.display = 'flex';
+      wrapper.style.justifyContent = role === 'user' ? 'flex-end' : 'flex-start';
+      wrapper.style.margin = '8px 0';
+
+      const bubble = document.createElement('div');
+      bubble.innerText = content;
+      bubble.style.maxWidth = '86%';
+      bubble.style.padding = '9px 11px';
+      bubble.style.borderRadius = '6px';
+      bubble.style.whiteSpace = 'pre-wrap';
+      bubble.style.overflowWrap = 'break-word';
+      bubble.style.fontSize = '14px';
+      bubble.style.lineHeight = '1.4';
+      bubble.style.background = role === 'user' ? '#0078d4' : '#ffffff';
+      bubble.style.color = role === 'user' ? '#ffffff' : '#201f1e';
+      bubble.style.border = role === 'user' ? 'none' : '1px solid #edebe9';
+
+      wrapper.appendChild(bubble);
+      messagesContainer.appendChild(wrapper);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      return bubble;
+    };
+
+    const setError = (message: string): void => {
+      statusText.innerText = message;
+      statusText.style.color = '#a4262c';
+    };
+
+    const setStatus = (message: string): void => {
+      statusText.innerText = message;
+      statusText.style.color = '#605e5c';
+    };
+
+    const setSendingState = (sending: boolean): void => {
+      isSending = sending;
+      input.disabled = sending;
+      sendButton.disabled = sending;
+      sendButton.style.opacity = sending ? '0.65' : '1';
+    };
+
+    const getAccessToken = async (): Promise<string> => {
+      setStatus('Henter pålogging...');
+      const tokenProvider: AadTokenProvider = await this.context.aadTokenProviderFactory.getTokenProvider();
+      const accessToken = await tokenProvider.getToken(chatbotResource);
+      setStatus('Klar');
+      return accessToken;
+    };
+
+    const processResponseMessage = (
+      responseMessage: IChatResponseMessage,
+      assistantMessage: IChatMessage,
+      assistantBubble: HTMLDivElement
+    ): void => {
+      if (responseMessage.role === 'tool') {
+        messages.push({
+          id: createMessageId(),
+          role: 'tool',
+          content: responseMessage.content || responseMessage.context || '',
+          date: new Date().toISOString()
+        });
         return;
       }
 
-      try {
-        const tokenProvider: AadTokenProvider = await this.context.aadTokenProviderFactory.getTokenProvider();
-        const accessToken = await tokenProvider.getToken(chatbotResource);
-        iframe.contentWindow.postMessage(
-          {
-            type: AUTH_TOKEN_MESSAGE,
-            accessToken
-          },
-          iframeOrigin
-        );
-        statusText.innerText = '';
-      } catch (error) {
-        statusText.innerText = 'Kunne ikke hente pålogging til chatboten. Kontakt administrator.';
-        console.error('Could not acquire chatbot token', error);
+      if (responseMessage.role !== 'assistant') {
+        return;
       }
+
+      assistantMessage.content += responseMessage.content || '';
+      assistantBubble.innerText = assistantMessage.content || '...';
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
     };
 
-    const sendToken = (): void => {
-      sendTokenToIframe().catch((error) => {
-        statusText.innerText = 'Kunne ikke hente pålogging til chatboten. Kontakt administrator.';
-        console.error('Could not send chatbot token', error);
+    const processChatResponse = (
+      payload: IChatResponse,
+      assistantMessage: IChatMessage,
+      assistantBubble: HTMLDivElement
+    ): void => {
+      if (payload.error) {
+        if (typeof payload.error === 'string') {
+          throw new Error(payload.error);
+        }
+        throw new Error(payload.error.message || 'Ukjent feil fra chatboten.');
+      }
+
+      if (!payload.choices || payload.choices.length === 0) {
+        return;
+      }
+
+      const responseMessages = payload.choices[0].messages || [];
+      responseMessages.forEach((responseMessage: IChatResponseMessage) => {
+        processResponseMessage(responseMessage, assistantMessage, assistantBubble);
       });
     };
 
-    const handleMessage = (event: MessageEvent): void => {
-      if (event.origin !== iframeOrigin || event.data?.type !== AUTH_READY_MESSAGE) {
+    const sendMessage = async (): Promise<void> => {
+      const question = input.value.trim();
+      if (!question || isSending) {
         return;
       }
 
-      sendToken();
+      setSendingState(true);
+      input.value = '';
+      setStatus('Sender...');
+
+      const userMessage: IChatMessage = {
+        id: createMessageId(),
+        role: 'user',
+        content: question,
+        date: new Date().toISOString()
+      };
+      messages.push(userMessage);
+      appendMessage('user', question);
+
+      const assistantMessage: IChatMessage = {
+        id: createMessageId(),
+        role: 'assistant',
+        content: '',
+        date: new Date().toISOString()
+      };
+      const assistantBubble = appendMessage('assistant', '...');
+
+      try {
+        const token = await getAccessToken();
+        const response = await fetch(`${chatbotApiBaseUrl}/conversation`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            messages: messages.filter((message: IChatMessage) => message.role !== 'error')
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Chatboten svarte med ${response.status}.`);
+        }
+
+        if (response.body) {
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder('utf-8');
+          let runningText = '';
+          let readResult = await reader.read();
+
+          while (!readResult.done) {
+            const chunk = decoder.decode(readResult.value);
+            const objects = chunk.split('\n');
+            objects.forEach((obj: string) => {
+              if (obj === '' || obj === '{}') {
+                return;
+              }
+
+              try {
+                runningText += obj;
+                processChatResponse(JSON.parse(runningText) as IChatResponse, assistantMessage, assistantBubble);
+                runningText = '';
+              } catch (error) {
+                if (!(error instanceof SyntaxError)) {
+                  throw error;
+                }
+              }
+            });
+
+            readResult = await reader.read();
+          }
+        } else {
+          processChatResponse(await response.json() as IChatResponse, assistantMessage, assistantBubble);
+        }
+
+        if (!assistantMessage.content) {
+          assistantMessage.content = 'Jeg fikk ikke noe svar fra chatboten.';
+          assistantBubble.innerText = assistantMessage.content;
+        }
+
+        messages.push(assistantMessage);
+        setStatus('Klar');
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Ukjent feil.';
+        assistantBubble.innerText = `En feil oppstod. ${errorMessage}`;
+        messages.push({
+          id: createMessageId(),
+          role: 'error',
+          content: assistantBubble.innerText,
+          date: new Date().toISOString()
+        });
+        setError('Kunne ikke kontakte chatboten.');
+        console.error('Could not send chatbot message', error);
+      } finally {
+        setSendingState(false);
+        input.focus();
+      }
     };
 
     closeButton.onclick = () => {
@@ -167,32 +404,51 @@ export default class ChatWithAiApplicationCustomizer extends BaseApplicationCust
       imageContainer.style.display = 'none';
     };
 
-    iframe.onload = () => {
-      sendToken();
-    };
-
-    window.addEventListener('message', handleMessage);
-
-    panelHeader.appendChild(closeButton);
-    this.panelContainer.appendChild(panelHeader);
-    this.panelContainer.appendChild(statusText);
-    this.panelContainer.appendChild(iframe);
-    document.body.appendChild(this.panelContainer);
-
     imageContainer.onclick = () => {
       this.panelContainer.style.display = 'flex';
-      if (!iframe.src) {
-        iframe.src = iframeUrl;
-      } else {
-        sendToken();
+      input.focus();
+      getAccessToken().catch((error: unknown) => {
+        setError('Kunne ikke hente pålogging til chatboten.');
+        console.error('Could not acquire chatbot token', error);
+      });
+    };
+
+    composer.onsubmit = (event: Event) => {
+      event.preventDefault();
+      sendMessage().catch((error: unknown) => {
+        setError('Kunne ikke sende melding.');
+        console.error('Could not submit chatbot message', error);
+      });
+    };
+
+    input.onkeydown = (event: KeyboardEvent) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendMessage().catch((error: unknown) => {
+          setError('Kunne ikke sende melding.');
+          console.error('Could not submit chatbot message', error);
+        });
       }
     };
 
     this.tokenRefreshTimer = window.setInterval(() => {
       if (this.panelContainer.style.display !== 'none') {
-        sendToken();
+        getAccessToken().catch((error: unknown) => {
+          setError('Kunne ikke fornye pålogging til chatboten.');
+          console.error('Could not refresh chatbot token', error);
+        });
       }
     }, tokenRefreshMinutes * 60 * 1000);
+
+    panelHeader.appendChild(titleText);
+    panelHeader.appendChild(closeButton);
+    composer.appendChild(input);
+    composer.appendChild(sendButton);
+    this.panelContainer.appendChild(panelHeader);
+    this.panelContainer.appendChild(statusText);
+    this.panelContainer.appendChild(messagesContainer);
+    this.panelContainer.appendChild(composer);
+    document.body.appendChild(this.panelContainer);
 
     return Promise.resolve();
   }

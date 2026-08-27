@@ -9,7 +9,7 @@
         "9c0ad898-e62a-4c46-bc9e-eefc71f0a28b": {
           "location": "ClientSideExtension.ApplicationCustomizer",
           "properties": {
-            "iframeUrl": "https://intranettchatbot.orkland.kommune.no",
+            "chatbotApiBaseUrl": "https://intranettchatbot.orkland.kommune.no",
             "chatbotResource": "api://47cbcbfe-6efd-4113-b089-0dcb7c7b33bc"
           }
         }
@@ -21,7 +21,7 @@
         "9c0ad898-e62a-4c46-bc9e-eefc71f0a28b": {
           "location": "ClientSideExtension.ApplicationCustomizer",
           "properties": {
-            "iframeUrl": "https://intranettchatbot.orkland.kommune.no",
+            "chatbotApiBaseUrl": "https://intranettchatbot.orkland.kommune.no",
             "chatbotResource": "api://47cbcbfe-6efd-4113-b089-0dcb7c7b33bc"
           }
         }
