@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  AZURE_FUNCTIONAPP_NAME: intranettchatbot-conversation-gkeuczhbgvczddfp
+  AZURE_FUNCTIONAPP_NAME: intranettchatbot-conversation
   AZURE_FUNCTIONAPP_PACKAGE_PATH: azure_function
   NODE_VERSION: '24.x'
 

@@ -24,7 +24,7 @@ services:
     project: ./azure_function
     language: js
     host: function
-    resourceName: intranettchatbot-conversation-gkeuczhbgvczddfp
+    resourceName: intranettchatbot-conversation
 hooks:
     preprovision:
       windows:
