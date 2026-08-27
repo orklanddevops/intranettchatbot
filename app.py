@@ -43,10 +43,47 @@ bp = Blueprint("routes", __name__, static_folder="static", template_folder="stat
 cosmos_db_ready = asyncio.Event()
 
 
+def get_allowed_cors_origins():
+    configured_origins = os.environ.get("CHATBOT_ALLOWED_ORIGINS", "https://orkland.sharepoint.com")
+    return [origin.strip().rstrip("/") for origin in configured_origins.split(",") if origin.strip()]
+
+
+def is_allowed_cors_origin(origin):
+    if not origin:
+        return False
+
+    return origin.rstrip("/") in get_allowed_cors_origins()
+
+
+def add_cors_headers(response):
+    origin = request.headers.get("Origin")
+    if not is_allowed_cors_origin(origin):
+        return response
+
+    response.headers["Access-Control-Allow-Origin"] = origin
+    response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Authorization,Content-Type"
+    response.headers["Access-Control-Max-Age"] = "86400"
+    response.headers["Vary"] = "Origin"
+    return response
+
+
 def create_app():
     app = Quart(__name__)
     app.register_blueprint(bp)
     app.config["TEMPLATES_AUTO_RELOAD"] = True
+
+    @app.before_request
+    async def handle_cors_preflight():
+        if request.method == "OPTIONS" and is_allowed_cors_origin(request.headers.get("Origin")):
+            response = await make_response("", 204)
+            return add_cors_headers(response)
+
+        return None
+
+    @app.after_request
+    async def append_cors_headers(response):
+        return add_cors_headers(response)
     
     @app.before_serving
     async def init():

@@ -12,6 +12,9 @@ param location string
 param appServicePlanName string = ''
 param backendServiceName string = ''
 param resourceGroupName string = ''
+param allowedOrigins array = [
+  'https://orkland.sharepoint.com'
+]
 
 param searchServiceName string = ''
 param searchServiceResourceGroupName string = ''
@@ -113,6 +116,7 @@ module backend 'core/host/appservice.bicep' = {
     authClientSecret: authClientSecret
     authClientId: authClientId
     authIssuerUri: authIssuerUri
+    allowedOrigins: allowedOrigins
     appSettings: {
       // search
       AZURE_SEARCH_INDEX: searchIndexName
@@ -137,6 +141,7 @@ module backend 'core/host/appservice.bicep' = {
       AZURE_OPENAI_STOP_SEQUENCE: openAIStopSequence
       AZURE_OPENAI_SYSTEM_MESSAGE: openAISystemMessage
       AZURE_OPENAI_STREAM: openAIStream
+      CHATBOT_ALLOWED_ORIGINS: join(allowedOrigins, ',')
     }
   }
 }
