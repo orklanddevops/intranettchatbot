@@ -39,17 +39,19 @@ function corsHeaders(origin) {
     'Access-Control-Allow-Origin': origin.replace(/\/$/, ''),
     'Access-Control-Allow-Methods': 'POST,OPTIONS',
     'Access-Control-Allow-Headers': 'Authorization,Content-Type',
+    'Access-Control-Expose-Headers': 'X-Chatbot-Proxy-Stage,X-Chatbot-Backend-Status,X-Chatbot-Backend-Layer',
     'Access-Control-Max-Age': '86400',
     Vary: 'Origin'
   };
 }
 
-function jsonResponse(payload, status, origin) {
+function jsonResponse(payload, status, origin, extraHeaders = {}) {
   return {
     status,
     headers: {
       'Content-Type': 'application/json',
-      ...corsHeaders(origin)
+      ...corsHeaders(origin),
+      ...extraHeaders
     },
     body: JSON.stringify(payload)
   };
@@ -245,7 +247,12 @@ async function validateBearerToken(token) {
 async function forwardToBackend(request, bearerToken, origin, context) {
   const backendUrl = process.env.BACKEND_CONVERSATION_URL;
   if (!backendUrl) {
-    return jsonResponse({ error: 'BACKEND_CONVERSATION_URL is not configured.' }, 500, origin);
+    return jsonResponse(
+      { error: 'BACKEND_CONVERSATION_URL is not configured.' },
+      500,
+      origin,
+      { 'X-Chatbot-Proxy-Stage': 'function-config' }
+    );
   }
 
   const timeoutSeconds = Number.parseInt(process.env.BACKEND_REQUEST_TIMEOUT_SECONDS || '230', 10);
@@ -264,18 +271,38 @@ async function forwardToBackend(request, bearerToken, origin, context) {
     });
 
     const responseBody = await backendResponse.text();
+    const backendLayer = backendResponse.headers.has('x-ms-middleware-request-id') ||
+      backendResponse.headers.has('www-authenticate')
+      ? 'easyauth'
+      : 'application';
+
+    if (!backendResponse.ok) {
+      context.warn(
+        `Chatbot backend returned ${backendResponse.status} from ${backendLayer}. ` +
+        `Content-Type: ${backendResponse.headers.get('content-type') || '(missing)'}. ` +
+        `Body preview: ${responseBody.slice(0, 500)}`
+      );
+    }
 
     return {
       status: backendResponse.status,
       headers: {
         'Content-Type': backendResponse.headers.get('content-type') || 'application/json',
-        ...corsHeaders(origin)
+        ...corsHeaders(origin),
+        'X-Chatbot-Proxy-Stage': 'backend',
+        'X-Chatbot-Backend-Status': String(backendResponse.status),
+        'X-Chatbot-Backend-Layer': backendLayer
       },
       body: responseBody
     };
   } catch (error) {
     context.error('Could not forward chatbot request.', error);
-    return jsonResponse({ error: `Could not contact chatbot backend: ${error.message}` }, 502, origin);
+    return jsonResponse(
+      { error: `Could not contact chatbot backend: ${error.message}` },
+      502,
+      origin,
+      { 'X-Chatbot-Proxy-Stage': 'backend-network' }
+    );
   }
 }
 
@@ -283,7 +310,13 @@ async function conversation(request, context) {
   const origin = request.headers.get('origin');
 
   if (!isAllowedOrigin(origin)) {
-    return jsonResponse({ error: 'Origin is not allowed.' }, 403, origin);
+    context.warn(`Rejected chatbot request from origin: ${origin || '(missing)'}.`);
+    return jsonResponse(
+      { error: 'Origin is not allowed.' },
+      403,
+      origin,
+      { 'X-Chatbot-Proxy-Stage': 'origin' }
+    );
   }
 
   if (request.method === 'OPTIONS') {
@@ -299,11 +332,22 @@ async function conversation(request, context) {
     return await forwardToBackend(request, bearerToken, origin, context);
   } catch (error) {
     if (error instanceof AuthenticationError) {
-      return jsonResponse({ error: error.message }, 401, origin);
+      context.warn(`Rejected chatbot bearer token: ${error.message}`);
+      return jsonResponse(
+        { error: error.message },
+        401,
+        origin,
+        { 'X-Chatbot-Proxy-Stage': 'function-auth' }
+      );
     }
 
     context.error('Unexpected conversation proxy error.', error);
-    return jsonResponse({ error: 'Unexpected conversation proxy error.' }, 500, origin);
+    return jsonResponse(
+      { error: 'Unexpected conversation proxy error.' },
+      500,
+      origin,
+      { 'X-Chatbot-Proxy-Stage': 'function-error' }
+    );
   }
 }
 
