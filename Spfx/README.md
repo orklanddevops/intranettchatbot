@@ -50,6 +50,18 @@ Short summary on functionality and used technologies.
 
 > Include any additional steps as needed.
 
+## Packaging
+
+This SPFx project builds two separate SharePoint app packages from the same source:
+
+- `npm run ship:floating` builds `sharepoint/solution/kommune-karlsen-floating.sppkg`
+- `npm run ship:frontpage` builds `sharepoint/solution/kommune-karlsen-frontpage.sppkg`
+- `npm run ship` builds both packages
+
+The floating package contains only the application customizer for the bottom-right chatbot. The frontpage package contains only the `Kommune Karlsen` web part for page placement.
+
+The old `sharepoint/solution/orkland-chat-with-ai.sppkg` package was the combined package and should not be used for new deployments.
+
 ## Features
 
 Description of the extension that expands upon high-level summary above.

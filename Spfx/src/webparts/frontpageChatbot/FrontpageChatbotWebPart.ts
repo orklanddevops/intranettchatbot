@@ -1,13 +1,13 @@
-import { BaseApplicationCustomizer } from '@microsoft/sp-application-base';
 import { AadTokenProvider } from '@microsoft/sp-http';
+import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 
-import defaultBotImageUrl from './assets/kommune_karlsen.svg';
-import sendIconUrl from './assets/Send.svg';
+import defaultBotImageUrl from '../../extensions/chatWithAi/assets/kommune_karlsen.svg';
+import sendIconUrl from '../../extensions/chatWithAi/assets/Send.svg';
 
-interface IChatWithAiApplicationCustomizerProperties {
+interface IFrontpageChatbotWebPartProps {
+  title?: string;
   imageUrl?: string;
   chatbotApiBaseUrl?: string;
-  iframeUrl?: string;
   chatbotResource?: string;
 }
 
@@ -32,154 +32,73 @@ interface IChatResponse {
   error?: string | { message?: string };
 }
 
+const DEFAULT_TITLE = 'Kommune Karlsen';
 const DEFAULT_CHATBOT_API_BASE_URL = 'https://intranettchatbot-conversation-gkeuczhbgvczddfp.norwayeast-01.azurewebsites.net';
 const CHATBOT_CONVERSATION_PATH = '/api/conversation';
 const DEFAULT_CHATBOT_RESOURCE = 'api://47cbcbfe-6efd-4113-b089-0dcb7c7b33bc';
 
-export default class ChatWithAiApplicationCustomizer extends BaseApplicationCustomizer<IChatWithAiApplicationCustomizerProperties> {
-  private panelContainer: HTMLDivElement | undefined;
-  private launcherContainer: HTMLDivElement | undefined;
-
-  public onInit(): Promise<void> {
+export default class FrontpageChatbotWebPart extends BaseClientSideWebPart<IFrontpageChatbotWebPartProps> {
+  public render(): void {
+    const title = this.properties.title || DEFAULT_TITLE;
     const imageUrl = this.properties.imageUrl || defaultBotImageUrl;
-    const chatbotApiBaseUrl = (
-      this.properties.chatbotApiBaseUrl ||
-      this.properties.iframeUrl ||
-      DEFAULT_CHATBOT_API_BASE_URL
-    ).replace(/\/$/, '');
-    const configuredChatbotResource = this.properties.chatbotResource;
-    const chatbotResource =
-      configuredChatbotResource && configuredChatbotResource !== chatbotApiBaseUrl
-        ? configuredChatbotResource
-        : DEFAULT_CHATBOT_RESOURCE;
+    const chatbotApiBaseUrl = (this.properties.chatbotApiBaseUrl || DEFAULT_CHATBOT_API_BASE_URL).replace(/\/$/, '');
+    const chatbotResource = this.properties.chatbotResource || DEFAULT_CHATBOT_RESOURCE;
     const messages: IChatMessage[] = [];
 
-    const launcherContainer = document.createElement('div');
-    launcherContainer.style.position = 'fixed';
-    launcherContainer.style.bottom = '20px';
-    launcherContainer.style.right = '20px';
-    launcherContainer.style.zIndex = '2147482999';
-    launcherContainer.style.cursor = 'pointer';
-    launcherContainer.style.width = '70px';
-    launcherContainer.style.height = '70px';
+    this.domElement.innerHTML = '';
 
-    const launcherImage = document.createElement('img');
-    launcherImage.src = imageUrl;
-    launcherImage.style.width = '60px';
-    launcherImage.style.height = '60px';
-    launcherImage.style.borderRadius = '50%';
-    launcherImage.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
-    launcherImage.alt = 'Bilde av Chat Bot som åpner Intranettchatbot';
-    launcherImage.title = 'Åpne Intranett Chatbot';
+    const root = document.createElement('section');
+    root.style.width = '100%';
+    root.style.maxWidth = '1120px';
+    root.style.margin = '0 auto';
+    root.style.fontFamily = '"Segoe UI", Arial, sans-serif';
+    root.style.color = '#242424';
 
-    const launcherCloseButton = document.createElement('button');
-    launcherCloseButton.innerText = '×';
-    launcherCloseButton.type = 'button';
-    launcherCloseButton.title = 'Skjul chatbot';
-    launcherCloseButton.setAttribute('aria-label', 'Skjul chatbot');
-    launcherCloseButton.style.position = 'absolute';
-    launcherCloseButton.style.top = '0';
-    launcherCloseButton.style.right = '0';
-    launcherCloseButton.style.width = '22px';
-    launcherCloseButton.style.height = '22px';
-    launcherCloseButton.style.border = '1px solid rgba(0, 0, 0, 0.18)';
-    launcherCloseButton.style.borderRadius = '50%';
-    launcherCloseButton.style.background = '#ffffff';
-    launcherCloseButton.style.boxShadow = '0 2px 6px rgba(0,0,0,0.2)';
-    launcherCloseButton.style.color = '#323130';
-    launcherCloseButton.style.cursor = 'pointer';
-    launcherCloseButton.style.fontSize = '16px';
-    launcherCloseButton.style.lineHeight = '18px';
-    launcherCloseButton.style.padding = '0';
+    const header = document.createElement('div');
+    header.style.display = 'flex';
+    header.style.alignItems = 'center';
+    header.style.justifyContent = 'center';
+    header.style.gap = '16px';
+    header.style.padding = '12px 16px 18px 16px';
 
-    launcherContainer.appendChild(launcherImage);
-    launcherContainer.appendChild(launcherCloseButton);
-    document.body.appendChild(launcherContainer);
-    this.launcherContainer = launcherContainer;
+    const headerIcon = document.createElement('img');
+    headerIcon.src = imageUrl;
+    headerIcon.alt = '';
+    headerIcon.setAttribute('aria-hidden', 'true');
+    headerIcon.style.width = '64px';
+    headerIcon.style.height = '64px';
+    headerIcon.style.objectFit = 'contain';
+    headerIcon.style.flex = '0 0 auto';
 
-    const panelContainer = document.createElement('div');
-    panelContainer.style.position = 'fixed';
-    panelContainer.style.top = '0';
-    panelContainer.style.right = '0';
-    panelContainer.style.width = 'min(520px, 48vw)';
-    panelContainer.style.height = '100%';
-    panelContainer.style.maxWidth = '100vw';
-    panelContainer.style.background = 'radial-gradient(108.78% 108.78% at 50.02% 19.78%, #ffffff 57.29%, #eef6fe 100%)';
-    panelContainer.style.boxShadow = '-2px 0 8px rgba(0,0,0,0.22)';
-    panelContainer.style.zIndex = '2147483000';
-    panelContainer.style.display = 'none';
-    panelContainer.style.flexDirection = 'column';
-    panelContainer.style.fontFamily = '"Segoe UI", Arial, sans-serif';
-    panelContainer.style.overflow = 'hidden';
+    const headerTitle = document.createElement('h2');
+    headerTitle.innerText = title;
+    headerTitle.style.margin = '0';
+    headerTitle.style.fontSize = '28px';
+    headerTitle.style.lineHeight = '36px';
+    headerTitle.style.fontWeight = '600';
+    headerTitle.style.letterSpacing = '0';
+    headerTitle.style.color = '#111111';
 
-    const panelHeader = document.createElement('div');
-    panelHeader.style.flex = '0 0 auto';
-    panelHeader.style.minHeight = '96px';
-    panelHeader.style.display = 'flex';
-    panelHeader.style.alignItems = 'center';
-    panelHeader.style.justifyContent = 'space-between';
-    panelHeader.style.gap = '16px';
-    panelHeader.style.padding = '16px 24px';
-    panelHeader.style.boxSizing = 'border-box';
-    panelHeader.style.background = 'rgba(255, 255, 255, 0.72)';
-    panelHeader.style.backdropFilter = 'blur(8px)';
-    panelHeader.style.zIndex = '2147483001';
+    header.appendChild(headerIcon);
+    header.appendChild(headerTitle);
 
-    const panelIdentity = document.createElement('div');
-    panelIdentity.style.minWidth = '0';
-    panelIdentity.style.display = 'flex';
-    panelIdentity.style.alignItems = 'center';
-    panelIdentity.style.gap = '16px';
-
-    const panelIcon = document.createElement('img');
-    panelIcon.src = imageUrl;
-    panelIcon.alt = '';
-    panelIcon.setAttribute('aria-hidden', 'true');
-    panelIcon.style.width = '72px';
-    panelIcon.style.height = '72px';
-    panelIcon.style.objectFit = 'contain';
-    panelIcon.style.flex = '0 0 auto';
-
-    const panelTitle = document.createElement('div');
-    panelTitle.innerText = 'Kommune Karlsen';
-    panelTitle.style.minWidth = '0';
-    panelTitle.style.overflow = 'hidden';
-    panelTitle.style.textOverflow = 'ellipsis';
-    panelTitle.style.whiteSpace = 'nowrap';
-    panelTitle.style.fontSize = '24px';
-    panelTitle.style.lineHeight = '32px';
-    panelTitle.style.fontWeight = '600';
-    panelTitle.style.color = '#111111';
-
-    const closeButton = document.createElement('button');
-    closeButton.innerText = '×';
-    closeButton.type = 'button';
-    closeButton.title = 'Lukk chat';
-    closeButton.setAttribute('aria-label', 'Lukk chat');
-    closeButton.style.flex = '0 0 auto';
-    closeButton.style.width = '40px';
-    closeButton.style.height = '40px';
-    closeButton.style.fontSize = '26px';
-    closeButton.style.lineHeight = '32px';
-    closeButton.style.border = '1px solid rgba(0, 0, 0, 0.18)';
-    closeButton.style.borderRadius = '50%';
-    closeButton.style.background = '#ffffff';
-    closeButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.24)';
-    closeButton.style.color = '#323130';
-    closeButton.style.cursor = 'pointer';
-    closeButton.style.padding = '0';
-
-    panelIdentity.appendChild(panelIcon);
-    panelIdentity.appendChild(panelTitle);
-    panelHeader.appendChild(panelIdentity);
-    panelHeader.appendChild(closeButton);
+    const chatSurface = document.createElement('div');
+    chatSurface.style.height = '620px';
+    chatSurface.style.minHeight = '520px';
+    chatSurface.style.maxHeight = 'calc(100vh - 260px)';
+    chatSurface.style.display = 'flex';
+    chatSurface.style.flexDirection = 'column';
+    chatSurface.style.background = 'radial-gradient(108.78% 108.78% at 50.02% 19.78%, #ffffff 57.29%, #eef6fe 100%)';
+    chatSurface.style.border = '1px solid rgba(0, 0, 0, 0.08)';
+    chatSurface.style.boxShadow = '0px 1px 2px rgba(0, 0, 0, 0.08), 0px 0px 2px rgba(0, 0, 0, 0.08)';
+    chatSurface.style.overflow = 'hidden';
 
     const messagesContainer = document.createElement('div');
     messagesContainer.style.flex = '1';
     messagesContainer.style.minHeight = '0';
     messagesContainer.style.overflowY = 'auto';
     messagesContainer.style.overflowX = 'hidden';
-    messagesContainer.style.padding = '24px 24px 0 24px';
+    messagesContainer.style.padding = '28px 32px 0 32px';
     messagesContainer.style.display = 'flex';
     messagesContainer.style.flexDirection = 'column';
 
@@ -193,8 +112,9 @@ export default class ChatWithAiApplicationCustomizer extends BaseApplicationCust
     emptyIcon.src = imageUrl;
     emptyIcon.alt = '';
     emptyIcon.setAttribute('aria-hidden', 'true');
-    emptyIcon.style.height = '150px';
-    emptyIcon.style.width = 'auto';
+    emptyIcon.style.width = '160px';
+    emptyIcon.style.maxWidth = '42%';
+    emptyIcon.style.height = 'auto';
     emptyState.appendChild(emptyIcon);
     messagesContainer.appendChild(emptyState);
 
@@ -202,13 +122,13 @@ export default class ChatWithAiApplicationCustomizer extends BaseApplicationCust
     composerRegion.style.position = 'relative';
     composerRegion.style.flex = '0 0 auto';
     composerRegion.style.minHeight = '112px';
-    composerRegion.style.padding = '12px 24px 24px 12px';
+    composerRegion.style.padding = '12px 32px 24px 32px';
 
     const composer = document.createElement('form');
     composer.style.position = 'absolute';
-    composer.style.left = '5%';
-    composer.style.right = '2.5%';
-    composer.style.bottom = '20px';
+    composer.style.left = '32px';
+    composer.style.right = '32px';
+    composer.style.bottom = '24px';
     composer.style.minHeight = '60px';
     composer.style.maxHeight = '200px';
     composer.style.background = '#ffffff';
@@ -271,12 +191,11 @@ export default class ChatWithAiApplicationCustomizer extends BaseApplicationCust
     composer.appendChild(sendButton);
     composer.appendChild(inputBottomBorder);
     composerRegion.appendChild(composer);
-
-    panelContainer.appendChild(panelHeader);
-    panelContainer.appendChild(messagesContainer);
-    panelContainer.appendChild(composerRegion);
-    document.body.appendChild(panelContainer);
-    this.panelContainer = panelContainer;
+    chatSurface.appendChild(messagesContainer);
+    chatSurface.appendChild(composerRegion);
+    root.appendChild(header);
+    root.appendChild(chatSurface);
+    this.domElement.appendChild(root);
 
     let isSending = false;
 
@@ -498,7 +417,7 @@ export default class ChatWithAiApplicationCustomizer extends BaseApplicationCust
           let readResult = await reader.read();
 
           while (!readResult.done) {
-            const chunk = readResult.value ? decoder.decode(readResult.value) : '';
+            const chunk = readResult.value ? decoder.decode(readResult.value, { stream: true }) : '';
             const objects = chunk.split('\n');
             objects.forEach((obj: string) => {
               if (obj === '' || obj === '{}') {
@@ -529,7 +448,7 @@ export default class ChatWithAiApplicationCustomizer extends BaseApplicationCust
       } catch (error) {
         assistantMessage.content = formatErrorMessage(error);
         assistantBubble.innerText = assistantMessage.content;
-        console.error('Could not send chatbot message', error);
+        console.error('Could not send frontpage chatbot message', error);
       } finally {
         messages.push(assistantMessage);
         setSendingState(false);
@@ -537,27 +456,10 @@ export default class ChatWithAiApplicationCustomizer extends BaseApplicationCust
       }
     };
 
-    closeButton.onclick = (event: MouseEvent) => {
-      event.preventDefault();
-      event.stopPropagation();
-      panelContainer.style.display = 'none';
-    };
-
-    launcherCloseButton.onclick = (event: MouseEvent) => {
-      event.stopPropagation();
-      panelContainer.style.display = 'none';
-      launcherContainer.style.display = 'none';
-    };
-
-    launcherContainer.onclick = () => {
-      panelContainer.style.display = 'flex';
-      input.focus();
-    };
-
     composer.onsubmit = (event: Event) => {
       event.preventDefault();
       sendMessage().catch((error: unknown) => {
-        console.error('Could not submit chatbot message', error);
+        console.error('Could not submit frontpage chatbot message', error);
       });
     };
 
@@ -569,21 +471,13 @@ export default class ChatWithAiApplicationCustomizer extends BaseApplicationCust
       if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
         sendMessage().catch((error: unknown) => {
-          console.error('Could not submit chatbot message', error);
+          console.error('Could not submit frontpage chatbot message', error);
         });
       }
     };
-
-    return Promise.resolve();
   }
 
-  public onDispose(): void {
-    if (this.panelContainer && this.panelContainer.parentElement) {
-      this.panelContainer.remove();
-    }
-
-    if (this.launcherContainer && this.launcherContainer.parentElement) {
-      this.launcherContainer.remove();
-    }
+  protected onDispose(): void {
+    this.domElement.innerHTML = '';
   }
 }

@@ -1,9 +1,9 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
   "solution": {
-    "name": "kommune-karlsen-floating-client-side-solution",
-    "id": "2b02eccf-b46f-4018-b396-037c2f27b35a",
-    "version": "1.0.8.0",
+    "name": "kommune-karlsen-frontpage-client-side-solution",
+    "id": "bf00f39b-62c5-411b-a427-48fccac8a53b",
+    "version": "1.0.0.0",
     "includeClientSideAssets": true,
     "skipFeatureDeployment": false,
     "isDomainIsolated": false,
@@ -16,28 +16,15 @@
     },
     "metadata": {
       "shortDescription": {
-        "default": "Kommune Karlsen floating chatbot"
+        "default": "Kommune Karlsen frontpage chatbot"
       },
       "longDescription": {
-        "default": "Floating Kommune Karlsen chatbot for SharePoint pages."
+        "default": "Inline Kommune Karlsen chatbot web part for SharePoint pages."
       },
       "screenshotPaths": [],
       "videoUrl": "",
       "categories": []
     },
-    "features": [
-      {
-        "title": "Kommune Karlsen floating chatbot",
-        "description": "Deploys the Kommune Karlsen floating chatbot application customizer.",
-        "id": "34bf8a13-177a-49fa-89ca-d8a6b3cdb2dd",
-        "version": "1.0.0.0",
-        "assets": {
-          "elementManifests": [
-            "elements.xml"
-          ]
-        }
-      }
-    ],
     "webApiPermissionRequests": [
       {
         "resource": "IntranettChatbot",
@@ -46,6 +33,6 @@
     ]
   },
   "paths": {
-    "zippedPackage": "solution/kommune-karlsen-floating.sppkg"
+    "zippedPackage": "solution/kommune-karlsen-frontpage.sppkg"
   }
 }

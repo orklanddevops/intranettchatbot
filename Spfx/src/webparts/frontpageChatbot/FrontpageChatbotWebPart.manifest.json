@@ -1,0 +1,25 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx/client-side-web-part-manifest.schema.json",
+  "id": "92398802-8351-4c9a-8ab4-e9e339c44753",
+  "alias": "FrontpageChatbotWebPart",
+  "componentType": "WebPart",
+  "version": "*",
+  "manifestVersion": 2,
+  "requiresCustomScript": false,
+  "supportedHosts": ["SharePointWebPart"],
+  "supportsThemeVariants": true,
+  "preconfiguredEntries": [
+    {
+      "groupId": "5c03119e-3074-46fd-976b-c60198311f70c",
+      "group": { "default": "Other" },
+      "title": { "default": "Kommune Karlsen" },
+      "description": { "default": "Inline chatbot for SharePoint pages." },
+      "officeFabricIconFontName": "ChatBot",
+      "properties": {
+        "title": "Kommune Karlsen",
+        "chatbotApiBaseUrl": "https://intranettchatbot-conversation-gkeuczhbgvczddfp.norwayeast-01.azurewebsites.net",
+        "chatbotResource": "api://47cbcbfe-6efd-4113-b089-0dcb7c7b33bc"
+      }
+    }
+  ]
+}
